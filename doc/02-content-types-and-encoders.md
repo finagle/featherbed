@@ -41,7 +41,7 @@ scala> import java.net.URL
 import java.net.URL
 
 scala> val client = new featherbed.Client(new URL("http://localhost:8766/api/"))
-client: featherbed.Client = featherbed.Client@cb6fa0f
+client: featherbed.Client = featherbed.Client@770785f0
 ```
 
 Importing `featherbed.circe._` brings an implicit derivation from `io.circe.Encoder[A]` to
@@ -59,7 +59,7 @@ scala> case class Foo(someText : String, someInt : Int)
 defined class Foo
 
 scala> val req = client.post("foo/bar").withContent(Foo("Hello world!", 42), "application/json")
-req: featherbed.PostRequest[Foo,String("application/json"),Some[Foo],shapeless.:+:[String("*/*"),shapeless.CNil]] = PostRequest(featherbed.Client@cb6fa0f,localhost:8766,com.twitter.finagle.http.RequestBuilder@13d8a15a,Some(Foo(Hello world!,42)),UTF-8)
+req: featherbed.PostRequest[Foo,String("application/json"),Some[Foo],shapeless.:+:[String("*/*"),shapeless.CNil]] = PostRequest(featherbed.Client@770785f0,localhost:8766,com.twitter.finagle.http.RequestBuilder@73e0a9f,Some(Foo(Hello world!,42)),UTF-8)
 
 scala> val result = Await.result {
      |    req map {

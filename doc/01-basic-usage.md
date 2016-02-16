@@ -32,7 +32,7 @@ scala> import java.net.URL
 import java.net.URL
 
 scala> val client = new featherbed.Client(new URL("http://localhost:8765/api/"))
-client: featherbed.Client = featherbed.Client@2ae26f61
+client: featherbed.Client = featherbed.Client@6c040e36
 ```
 *Note:* It is important to put a trailing slash on your URL.  This is because the resource path you'll pass in below
 is evaluated as a relative URL to the base URL given.  Without a trailing slash, the `api` directory above would be
@@ -108,4 +108,4 @@ res4: Int = 200
 ```
 
 
-Next, read about [Content types and Encoders]("02-content-types-and-encoders.md")
+Next, read about [Content types and Encoders](02-content-types-and-encoders.md)
