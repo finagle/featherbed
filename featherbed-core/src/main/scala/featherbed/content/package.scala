@@ -6,10 +6,7 @@ import java.nio.charset.{CodingErrorAction, Charset}
 import cats.data.{Validated, ValidatedNel}
 import com.twitter.finagle.http.Response
 import com.twitter.io.Buf
-import shapeless.ops.hlist.LiftAll
-import shapeless.ops.union.Keys
-import shapeless.{Coproduct, HList, Witness}
-import shapeless.syntax.singleton
+import shapeless.Witness
 import sun.nio.cs.ThreadLocalCoders
 
 import scala.util.Try
