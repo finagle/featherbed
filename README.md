@@ -1,0 +1,20 @@
+# featherbed
+
+Featherbed aims to be a typesafe, functional REST client API over [Finagle](https://github.com/twitter/finagle).
+It provides a friendlier approach to building REST client interfaces in Scala.  Currently, Featherbed
+is in the early stages of development, and includes the following modules:
+
+ 1. `featherbed-core` - the functional client interface
+ 2. `featherbed-circe` - automatic JSON request encoding and response decoding using [Circe](https://github.com/travisbrown/circe)
+
+The following modules are planned:
+
+ 1. `featherbed-oauth` - OAuth authenticated requests
+
+## Documentation
+To get started with featherbed, check out the [Guide](doc/).
+
+## Dependencies
+
+Featherbed aims to have a minimal set of dependencies.  Besides `finagle-http`, the core project is
+dependent only on [shapeless](https://github.com/milessabin/shapeless) and [cats](https://github.com/typelevel/cats).
