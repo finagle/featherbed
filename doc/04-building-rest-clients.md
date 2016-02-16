@@ -63,7 +63,7 @@ scala> class JSONPlaceholderAPI(baseUrl: URL) {
 defined class JSONPlaceholderAPI
 
 scala> val apiClient = new JSONPlaceholderAPI(new URL("http://jsonplaceholder.typicode.com/"))
-apiClient: JSONPlaceholderAPI = JSONPlaceholderAPI@3656cf73
+apiClient: JSONPlaceholderAPI = JSONPlaceholderAPI@5bac90e5
 
 scala> Await.result(apiClient.posts.list())
 res0: cats.data.Validated[featherbed.InvalidResponse,Seq[Post]] =

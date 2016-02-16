@@ -4,7 +4,6 @@ import java.nio.CharBuffer
 import java.nio.charset.{CodingErrorAction, Charset}
 
 import cats.data.{Validated, ValidatedNel}
-import featherbed.support.LiftAll2
 import com.twitter.finagle.http.Response
 import com.twitter.io.Buf
 import shapeless.ops.hlist.LiftAll

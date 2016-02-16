@@ -49,19 +49,43 @@ can be used to fine-tune the request that will be sent.
 ```tut
 import java.nio.charset.StandardCharsets._
 
-val result = Await.result {
-  val request = client
+Await.result {
+  client
     .post("another/resource")
     .withForm(
       "foo" -> "foz",
       "bar" -> "baz")
     .withCharset(UTF_8)
     .withHeaders("X-Foo" -> "scooby-doo")
+    .map {
+      response => response.contentString
+    }
+}
+```
 
-  request map {
-    response => response.contentString
+```tut
+Await.result {
+  client.head("head/request").map(_.headerMap)
+}
+```
+
+```tut
+import com.twitter.io.Buf
+
+Await.result {
+  client.put("put/request").withContent(Buf.Utf8("Hello world!"), "text/plain") map {
+    response => response.statusCode
   }
 }
 ```
+
+```tut
+Await.result {
+  client.delete("delete/request") map {
+    response => response.statusCode
+  }
+}
+```
+
 
 Next, read about [Content types and Encoders]("02-content-types-and-encoders.md")

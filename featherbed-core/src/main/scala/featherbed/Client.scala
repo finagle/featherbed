@@ -1,14 +1,8 @@
 package featherbed
 
-import java.net.{InetSocketAddress, SocketAddress, URL}
-
-import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle._
-import com.twitter.finagle.http.{RequestBuilder, Method, Response, Request}
-import com.twitter.io.Buf
-import com.twitter.util.Future
+import java.net.URL
+import com.twitter.finagle._, http.RequestBuilder
 import shapeless.Coproduct
-import shapeless.union.Union
 
 
 class Client private[featherbed] (private[featherbed] val backend: ClientBackend) {
@@ -33,6 +27,12 @@ class Client private[featherbed] (private[featherbed] val backend: ClientBackend
     requestBuilder(relativePath),
     multipart = false,
     None)
+
+  def head(relativePath : String) =
+    HeadRequest(this, Client.hostAndPort(backend.baseUrl), requestBuilder(relativePath))
+
+  def delete(relativePath : String) =
+    DeleteRequest[Coproduct.`"*/*"`.T](this, Client.hostAndPort(backend.baseUrl), requestBuilder(relativePath))
 
   private def requestBuilder(relativePath: String) =
     RequestBuilder().url(new URL(backend.baseUrl, relativePath))

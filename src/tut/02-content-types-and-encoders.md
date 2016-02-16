@@ -67,7 +67,7 @@ request of the same parameters will be initiated and a new `Future` will be retu
 powerful thing, but it can also bite you if you're unaware.
 
 For more information about lazy tasks, take a look at scalaz's `Task` or cats's `Eval`.  Again, this is important to
-note, and is different than what people are used to with `Future` (which is not lazy).
+note, and is different than what people are used to with Finagle's `Future` (which is not lazy).
 
 ### A Note About Types
 

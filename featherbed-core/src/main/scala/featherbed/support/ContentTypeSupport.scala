@@ -1,4 +1,4 @@
-package support
+package featherbed.support
 
 import java.nio.charset.Charset
 

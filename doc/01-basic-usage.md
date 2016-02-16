@@ -32,7 +32,7 @@ scala> import java.net.URL
 import java.net.URL
 
 scala> val client = new featherbed.Client(new URL("http://localhost:8765/api/"))
-client: featherbed.Client = featherbed.Client@54c22548
+client: featherbed.Client = featherbed.Client@5bac4089
 ```
 *Note:* It is important to put a trailing slash on your URL.  This is because the resource path you'll pass in below
 is evaluated as a relative URL to the base URL given.  Without a trailing slash, the `api` directory above would be
@@ -64,20 +64,48 @@ can be used to fine-tune the request that will be sent.
 scala> import java.nio.charset.StandardCharsets._
 import java.nio.charset.StandardCharsets._
 
-scala> val result = Await.result {
-     |   val request = client
+scala> Await.result {
+     |   client
      |     .post("another/resource")
      |     .withForm(
      |       "foo" -> "foz",
      |       "bar" -> "baz")
      |     .withCharset(UTF_8)
      |     .withHeaders("X-Foo" -> "scooby-doo")
-     | 
-     |   request map {
-     |     response => response.contentString
+     |     .map {
+     |       response => response.contentString
+     |     }
+     | }
+res1: String = POST /api/another/resource :: foo=foz&bar=baz
+```
+
+```scala
+scala> Await.result {
+     |   client.head("head/request").map(_.headerMap)
+     | }
+res2: com.twitter.finagle.http.HeaderMap = Map(Content-Length -> 26)
+```
+
+```scala
+scala> import com.twitter.io.Buf
+import com.twitter.io.Buf
+
+scala> Await.result {
+     |   client.put("put/request").withContent(Buf.Utf8("Hello world!"), "text/plain") map {
+     |     response => response.statusCode
      |   }
      | }
-result: String = POST /api/another/resource :: foo=foz&bar=baz
+res3: Int = 200
 ```
+
+```scala
+scala> Await.result {
+     |   client.delete("delete/request") map {
+     |     response => response.statusCode
+     |   }
+     | }
+res4: Int = 200
+```
+
 
 Next, read about [Content types and Encoders]("02-content-types-and-encoders.md")

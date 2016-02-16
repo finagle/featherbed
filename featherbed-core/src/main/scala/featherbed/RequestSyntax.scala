@@ -1,23 +1,13 @@
 package featherbed
 
-import java.nio.charset.{StandardCharsets, Charset}
-
-import _root_.support.{RuntimeContentType, ContentTypeSupport}
-import cats.data.Validated.{Invalid, Valid}
-import cats.data.{NonEmptyList, Validated, ValidatedNel}
+import java.nio.charset.Charset
+import featherbed.support.{DecodeAll, RuntimeContentType, ContentTypeSupport}
+import cats.data.{NonEmptyList, Validated, ValidatedNel}, Validated._
 import cats.std.list._
-import featherbed.content.{Decoder}
-import featherbed.support._
-import com.twitter.finagle.Service
-import com.twitter.finagle.client.StackClient
-import com.twitter.finagle.http.RequestConfig.Yes
-import com.twitter.finagle.http._
+import com.twitter.finagle.http._, RequestConfig._
 import com.twitter.io.Buf
 import com.twitter.util.Future
 import shapeless._
-import shapeless.ops.hlist.{ToTraversable, Filter, LiftAll, ToCoproduct}
-import shapeless.ops.record.{ToMap, Keys, SelectAll}
-import shapeless.record.recordOps
 
 import scala.annotation.implicitNotFound
 
@@ -32,39 +22,46 @@ case class RequestBuildingError(errors: NonEmptyList[Throwable]) extends Throwab
      try assigning that request to a value and using the value instead.
   4. Something is missing from featherbed""")
 sealed trait CanBuildRequest[T] {
-  def build(t: T, charset: Charset) : ValidatedNel[Throwable, Request]
+  def build(t: T) : ValidatedNel[Throwable, Request]
 }
 
 object CanBuildRequest {
 
   implicit def canBuildGetRequest[Accept <: Coproduct] : CanBuildRequest[GetRequest[Accept]] = new CanBuildRequest[GetRequest[Accept]] {
-    def build(getRequest: GetRequest[Accept], charset: Charset) = Valid(getRequest.requestBuilder.buildGet())
+    def build(getRequest: GetRequest[Accept]) = Valid(getRequest.requestBuilder.buildGet())
   }
-  implicit def canBuildPostRequestWithContent[Accept <: Coproduct, CT <: content.ContentType] : CanBuildRequest[PostRequest[Buf, CT, Some[Buf], Accept]] = new CanBuildRequest[PostRequest[Buf, CT, Some[Buf], Accept]] {
-    def build(postRequest: PostRequest[Buf, CT, Some[Buf], Accept], charset: Charset) = Valid(postRequest.requestBuilder.buildPost(postRequest.content.get))   //I justify this Option#get because it is known at a typelevel to be Some.
-  }
+  implicit def canBuildPostRequestWithContentBuffer[Accept <: Coproduct, CT <: content.ContentType] : CanBuildRequest[PostRequest[Buf, CT, Some[Buf], Accept]] =
+    new CanBuildRequest[PostRequest[Buf, CT, Some[Buf], Accept]] {
+      def build(postRequest: PostRequest[Buf, CT, Some[Buf], Accept]) =
+        Valid(postRequest.requestBuilder.buildPost(postRequest.content.get))   //I justify this Option#get because it is known at a typelevel to be Some.
+    }
   implicit def canBuildFormPostRequest[Accept <: Coproduct] : CanBuildRequest[FormPostRequest[Accept]] = new CanBuildRequest[FormPostRequest[Accept]] {
-    def build(formPostRequest: FormPostRequest[Accept], charset: Charset) = Valid(formPostRequest.requestBuilder.buildFormPost(formPostRequest.multipart))
+    def build(formPostRequest: FormPostRequest[Accept]) = Valid(formPostRequest.requestBuilder.buildFormPost(formPostRequest.multipart))
   }
   implicit def canBuildPutRequest[Accept <: Coproduct, CT <: content.ContentType] : CanBuildRequest[PutRequest[Buf, CT, Some[Buf], Accept]] = new CanBuildRequest[PutRequest[Buf, CT, Some[Buf], Accept]] {
-    def build(putRequest: PutRequest[Buf, CT, Some[Buf], Accept], charset: Charset) = Valid(putRequest.requestBuilder.buildPut(putRequest.content.get))
+    def build(putRequest: PutRequest[Buf, CT, Some[Buf], Accept]) = Valid(putRequest.requestBuilder.buildPut(putRequest.content.get))
+  }
+  implicit val canBuildHeadRequest = new CanBuildRequest[HeadRequest] {
+    def build(headRequest: HeadRequest) = Valid(headRequest.requestBuilder.buildHead())
+  }
+  implicit def canBuildDeleteRequest[Accept <: Coproduct] : CanBuildRequest[DeleteRequest[Accept]] = new CanBuildRequest[DeleteRequest[Accept]] {
+    def build(deleteRequest: DeleteRequest[Accept]) = Valid(deleteRequest.requestBuilder.buildDelete())
   }
 
   implicit def canBuildPostRequestWithEncoder[Accept <: Coproduct, A, CT](
-    implicit encoder: content.Encoder[A, CT]) : CanBuildRequest[PostRequest[A, CT, Some[A], Accept]] = new CanBuildRequest[PostRequest[A, CT, Some[A], Accept]] {
-
-    def build(postRequest: PostRequest[A, CT, Some[A], Accept], charset: Charset) = encoder(postRequest.content.get, charset).map {
-      encoded => postRequest.requestBuilder.buildPost(encoded)
+    implicit encoder: content.Encoder[A, CT]) : CanBuildRequest[PostRequest[A, CT, Some[A], Accept]] =
+    new CanBuildRequest[PostRequest[A, CT, Some[A], Accept]] {
+      def build(postRequest: PostRequest[A, CT, Some[A], Accept]) =
+        encoder(postRequest.content.get, postRequest.charset).map(postRequest.requestBuilder.buildPost)
     }
-  }
 
-  /**
-    * Helper method to supply an instance for a `foo.type` if its widened type has an instance.  Scala seems to have trouble directly
-    * finding implicit typeclass instances for singletons with type arguments.  Shapeless' `Widen` typeclass can bridge the gap.
-    */
-  implicit def canBuildSingletonType[T, W >: T](implicit widen: Widen.Aux[T, W], canBuild: CanBuildRequest[W]) : CanBuildRequest[T] = new CanBuildRequest[T] {
-    def build(req: T, charset: Charset) = canBuild.build(req, charset)
-  }
+  implicit def canBuildPutRequestWithEncoder[Accept <: Coproduct, A, CT](
+    implicit encoder: content.Encoder[A, CT]) : CanBuildRequest[PutRequest[A, CT, Some[A], Accept]] =
+      new CanBuildRequest[PutRequest[A, CT, Some[A], Accept]] {
+        def build(putRequest: PutRequest[A, CT, Some[A], Accept]) =
+          encoder(putRequest.content.get, putRequest.charset).map(putRequest.requestBuilder.buildPut)
+      }
+
 
 }
 
@@ -126,7 +123,7 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
     * scala won't allow us to refer to the shape of a copy method or the widened subclass's type.
     */
   protected[featherbed] def buildRequest(implicit canBuild: CanBuildRequest[Self], ev: this.type <:< Self) : ValidatedNel[Throwable, Request] =
-    canBuild.build(this : Self, charset)
+    canBuild.build(this : Self)
 
   def withHeader(name: String, value: String) : Self = withBuilder(requestBuilder.addHeader(name, value))
   def withHeaders(headers: (String, String)*) : Self = withBuilder(requestBuilder = headers.foldLeft(requestBuilder) {
@@ -213,7 +210,7 @@ case class FormPostRequest[Accept <: Coproduct] private[featherbed] (
 
 case class PutRequest[
   Content,
-  WithContentType <: featherbed.content.ContentType,
+  WithContentType,
   ContentProvided <: Option[Content],
   Accept <: Coproduct
 ] private[featherbed] (
@@ -228,7 +225,7 @@ case class PutRequest[
   type Self = PutRequest[Content, WithContentType, ContentProvided, Accept]
   override type SelfAccepting[A <: Coproduct] = PutRequest[Content, WithContentType, ContentProvided, A]
 
-  override protected def withBuilder(newRequestBuilder: RequestBuilder[Yes, Nothing]): Self =
+  protected def withBuilder(newRequestBuilder: RequestBuilder[Yes, Nothing]): Self =
     copy(rb = newRequestBuilder)
 
   def withCharset(newCharset : Charset) = copy(charset = newCharset)
@@ -238,4 +235,34 @@ case class PutRequest[
 
   def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes] =
     copy[Content, WithContentType, ContentProvided, ContentTypes]()
+}
+
+case class HeadRequest private[featherbed](private val client: Client,
+  private val dest: String,
+  private val rb: RequestBuilder[Yes, Nothing],
+  charset: Charset = Charset.defaultCharset) extends RequestSyntax[Yes, Nothing, Nothing](client, dest, rb) {
+
+  type Self = HeadRequest
+  override type SelfAccepting[A] = Self
+
+  // Doesn't make sense to Accept in a HEAD request
+  def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes] = this
+
+  protected def withBuilder(newRequestBuilder: RequestBuilder[Yes, Nothing]): HeadRequest = copy(rb = newRequestBuilder)
+
+  def withCharset(newCharset: Charset): HeadRequest = copy(charset = newCharset)
+}
+
+case class DeleteRequest[Accept <: Coproduct] private[featherbed](private val client: Client,
+  private val dest: String,
+  private val rb: RequestBuilder[Yes, Nothing],
+  charset: Charset = Charset.defaultCharset) extends RequestSyntax[Yes, Nothing, Nothing](client, dest, rb) {
+
+  type Self = DeleteRequest[Accept]
+  type SelfAccepting[A <: Coproduct] = DeleteRequest[A]
+
+  def withBuilder(newRequestBuilder : RequestBuilder[Yes, Nothing]) = copy(rb = newRequestBuilder)
+  def withCharset(newCharset : Charset) = copy(charset = newCharset)
+  def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes] = copy[ContentTypes]()
+
 }

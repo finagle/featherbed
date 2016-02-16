@@ -41,7 +41,7 @@ scala> import java.net.URL
 import java.net.URL
 
 scala> val client = new featherbed.Client(new URL("http://localhost:8766/api/"))
-client: featherbed.Client = featherbed.Client@316134d3
+client: featherbed.Client = featherbed.Client@5eb3bde
 ```
 
 Importing `featherbed.circe._` brings an implicit derivation from `io.circe.Encoder[A]` to
@@ -59,7 +59,7 @@ scala> case class Foo(someText : String, someInt : Int)
 defined class Foo
 
 scala> val req = client.post("foo/bar").withContent(Foo("Hello world!", 42), "application/json")
-req: featherbed.PostRequest[Foo,String("application/json"),Some[Foo],shapeless.:+:[String("*/*"),shapeless.CNil]] = PostRequest(featherbed.Client@316134d3,localhost:8766,com.twitter.finagle.http.RequestBuilder@7d273ff4,Some(Foo(Hello world!,42)),UTF-8)
+req: featherbed.PostRequest[Foo,String("application/json"),Some[Foo],shapeless.:+:[String("*/*"),shapeless.CNil]] = PostRequest(featherbed.Client@5eb3bde,localhost:8766,com.twitter.finagle.http.RequestBuilder@7bfd50ae,Some(Foo(Hello world!,42)),UTF-8)
 
 scala> val result = Await.result {
      |    req map {
@@ -90,7 +90,7 @@ request of the same parameters will be initiated and a new `Future` will be retu
 powerful thing, but it can also bite you if you're unaware.
 
 For more information about lazy tasks, take a look at scalaz's `Task` or cats's `Eval`.  Again, this is important to
-note, and is different than what people are used to with `Future` (which is not lazy).
+note, and is different than what people are used to with Finagle's `Future` (which is not lazy).
 
 ### A Note About Types
 
