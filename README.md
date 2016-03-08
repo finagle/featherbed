@@ -1,5 +1,7 @@
 # featherbed
 
+[![Join the chat at https://gitter.im/jeremyrsmith/featherbed](https://badges.gitter.im/jeremyrsmith/featherbed.svg)](https://gitter.im/jeremyrsmith/featherbed?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Featherbed aims to be a typesafe, functional REST client API over [Finagle](https://github.com/twitter/finagle).
 It provides a friendlier approach to building REST client interfaces in Scala.  Currently, Featherbed
 is in the early stages of development, and includes the following modules:
