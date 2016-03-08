@@ -15,6 +15,11 @@ class Client private[featherbed] (private[featherbed] val backend: ClientBackend
     Client.hostAndPort(backend.baseUrl),
     requestBuilder(relativePath))
 
+  def get(relativePath : String, params:Map[String, String]) = GetRequest[Coproduct.`"*/*"`.T](
+    this,
+    Client.hostAndPort(backend.baseUrl),
+    requestBuilder(relativePath, params))
+
   def post(relativePath : String) = PostRequest[Nothing, Nothing, None.type, Coproduct.`"*/*"`.T](
     this,
     Client.hostAndPort(backend.baseUrl),
@@ -36,6 +41,13 @@ class Client private[featherbed] (private[featherbed] val backend: ClientBackend
 
   private def requestBuilder(relativePath: String) =
     RequestBuilder().url(new URL(backend.baseUrl, relativePath))
+
+  private def queryString(params:Map[String,String]) = params.map { case (k, v) => 
+    k + "=" + v
+  }.mkString("?", "&", "")
+
+  private def requestBuilder(relativePath: String, params:Map[String,String]) = 
+    RequestBuilder().url(new URL(backend.baseUrl, relativePath + queryString(params)))
 
   protected def clientTransform(client: Http.Client): Http.Client = client
 
