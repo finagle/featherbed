@@ -1,6 +1,7 @@
 package featherbed
 
 import java.nio.charset.Charset
+import java.net.URL
 import featherbed.support.{DecodeAll, RuntimeContentType, ContentTypeSupport}
 import cats.data.{NonEmptyList, Validated, ValidatedNel}, Validated._
 import cats.std.list._
@@ -70,7 +71,7 @@ case class InvalidResponse(response: Response, reason: String)
 
 abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
   client: Client,
-  dest: String,
+  dest: Dest,
   protected[featherbed] val requestBuilder: RequestBuilder[HasUrl, HasForm]){
 
   type Self <: RequestSyntax[HasUrl,HasForm,Accept]
@@ -133,11 +134,16 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
   def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes]
 
   def withCharset(charset: Charset) : Self
+
+  protected def queryString(params:Map[String,String]) = params.map { case (k, v) => 
+    k + "=" + v
+  }.mkString("?", "&", "")
+
 }
 
 case class GetRequest[Accept <: Coproduct] private[featherbed] (
     private val client: Client,
-    private val dest: String,
+    private val dest: Dest,
     private val rb: RequestBuilder[Yes, Nothing],
     charset: Charset = Charset.defaultCharset
   ) extends RequestSyntax[Yes, Nothing, Accept](client, dest, rb) {
@@ -149,6 +155,7 @@ case class GetRequest[Accept <: Coproduct] private[featherbed] (
   def withCharset(newCharset : Charset) = copy(charset = newCharset)
   def accept[ContentTypes <: Coproduct]: SelfAccepting[ContentTypes] =
     copy[ContentTypes]()
+  def withParams(params:Map[String,String]) = withBuilder(requestBuilder.url(new URL(dest.baseUrl, dest.relativePath + queryString(params))))
 }
 
 case class PostRequest[
@@ -158,7 +165,7 @@ case class PostRequest[
   Accept <: Coproduct
 ] private[featherbed] (
     private val client: Client,
-    private val dest : String,
+    private val dest : Dest,
     private val rb: RequestBuilder[Yes, Nothing],
     private[featherbed] val content: Option[Content],
     charset: Charset = Charset.defaultCharset
@@ -184,11 +191,13 @@ case class PostRequest[
 
   def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes] =
     copy[Content, WithContentType, ContentProvided, ContentTypes]()
+
+  def withParams(params:Map[String,String]) = withBuilder(requestBuilder.url(new URL(dest.baseUrl, dest.relativePath + queryString(params))))
 }
 
 case class FormPostRequest[Accept <: Coproduct] private[featherbed] (
     private val client: Client,
-    private val dest : String,
+    private val dest : Dest,
     private val rb: RequestBuilder[Yes, Yes],
     private[featherbed] val multipart : Boolean = false,
     charset: Charset = Charset.defaultCharset
@@ -206,6 +215,8 @@ case class FormPostRequest[Accept <: Coproduct] private[featherbed] (
   def withMultipart(multipart : Boolean) = copy(multipart = multipart)
   def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes] =
     copy[ContentTypes]()
+
+  def withParams(params:Map[String,String]) = withBuilder(requestBuilder.url(new URL(dest.baseUrl, dest.relativePath + queryString(params))))
 }
 
 case class PutRequest[
@@ -215,7 +226,7 @@ case class PutRequest[
   Accept <: Coproduct
 ] private[featherbed] (
     private val client: Client,
-    private val dest : String,
+    private val dest : Dest,
     private val rb: RequestBuilder[Yes, Nothing],
     private[featherbed] val multipart : Boolean = false,
     private[featherbed] val content: ContentProvided,
@@ -235,10 +246,12 @@ case class PutRequest[
 
   def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes] =
     copy[Content, WithContentType, ContentProvided, ContentTypes]()
+
+  def withParams(params:Map[String,String]) = withBuilder(requestBuilder.url(new URL(dest.baseUrl, dest.relativePath + queryString(params))))
 }
 
 case class HeadRequest private[featherbed](private val client: Client,
-  private val dest: String,
+  private val dest: Dest,
   private val rb: RequestBuilder[Yes, Nothing],
   charset: Charset = Charset.defaultCharset) extends RequestSyntax[Yes, Nothing, Nothing](client, dest, rb) {
 
@@ -251,10 +264,12 @@ case class HeadRequest private[featherbed](private val client: Client,
   protected def withBuilder(newRequestBuilder: RequestBuilder[Yes, Nothing]): HeadRequest = copy(rb = newRequestBuilder)
 
   def withCharset(newCharset: Charset): HeadRequest = copy(charset = newCharset)
+
+  def withParams(params:Map[String,String]) = withBuilder(requestBuilder.url(new URL(dest.baseUrl, dest.relativePath + queryString(params))))
 }
 
 case class DeleteRequest[Accept <: Coproduct] private[featherbed](private val client: Client,
-  private val dest: String,
+  private val dest: Dest,
   private val rb: RequestBuilder[Yes, Nothing],
   charset: Charset = Charset.defaultCharset) extends RequestSyntax[Yes, Nothing, Nothing](client, dest, rb) {
 
@@ -265,4 +280,5 @@ case class DeleteRequest[Accept <: Coproduct] private[featherbed](private val cl
   def withCharset(newCharset : Charset) = copy(charset = newCharset)
   def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes] = copy[ContentTypes]()
 
+  def withParams(params:Map[String,String]) = withBuilder(requestBuilder.url(new URL(dest.baseUrl, dest.relativePath + queryString(params))))
 }
