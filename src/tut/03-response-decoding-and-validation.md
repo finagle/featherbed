@@ -1,3 +1,8 @@
+---
+title: Response Decoding and Validation
+layout: default
+---
+
 # Response Decoding and Validation
 
 In the previous section, we looked at how we can import `Encoder` instances to make it so we
@@ -15,7 +20,7 @@ Content-Type.  For requests to `/foo/bad`, it will return some invalid JSON with
 Content-Type.  For requests to `/foo/awful`, it will return some junk with a completely
 unexpected Content-Type.
 
-```tut
+```tut:book
 import com.twitter.util.{Future,Await}
 import com.twitter.finagle.{Service,Http}
 import com.twitter.finagle.http.{Request,Response}
@@ -50,7 +55,7 @@ val client = new featherbed.Client(new URL("http://localhost:8767/api/"))
 
 To specify that a response should be decoded, use the `send[T]` method to initiate the request:
 
-```tut:nofail
+```tut:book:nofail
 import featherbed.circe._
 import io.circe.generic.auto._
 
@@ -69,13 +74,13 @@ to specify an `Accept` header and ensure that we're able to decode all of the ty
 into `Foo`.  In scala type land, the `Accept` content types are a `Coproduct` of string literals
 which can be specified using shapless's `Coproduct` syntax.  In this case, we only want `application/json`.
 
-```tut
+```tut:book
 import shapeless.Coproduct
 
 Await.result {
   val request = client.post("foo/good")
     .withContent(Foo("Hello world", 42), "application/json")
-    .accept[Coproduct.`"application/json"`.T]
+    .accept("application/json")
 
   request.send[Foo]()
 }
@@ -90,7 +95,7 @@ What this means is that the result of the `Future` will be a `cats.data.Validate
 response was invalid, as well as the `Response` itself (so you can process it further if you like).
 Let's see what that looks like:
 
-```tut
+```tut:book
 Await.result {
   val request = client.post("foo/bad")
     .withContent(Foo("Hello world", 42), "application/json")
@@ -113,4 +118,4 @@ and give the original `Response`.  In the first case, we get back Circe's parsin
 case, we get a message that the content type wasn't expected and therefore there isn't a decoder for it.
 This helps us deal with inevitable runtime failures resulting from external systems.
 
-Next, read about [Building REST Clients](04-building-rest-clients.md)
+Next, read about [Building REST Clients](04-building-rest-clients.html)

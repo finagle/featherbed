@@ -1,8 +1,13 @@
+---
+title: Basic Usage
+layout: default
+---
+
 # Basic Usage
 
 Assuming an HTTP server exists at `localhost:8765`:
 
-```tut
+```tut:book
 import com.twitter.util.Future
 import com.twitter.finagle.{Service,Http}
 import com.twitter.finagle.http.{Request,Response}
@@ -18,7 +23,7 @@ val server = Http.serve(new InetSocketAddress(8765), new Service[Request, Respon
 
 Create a `Client`, passing the base URL to the REST endpoints:
 
-```tut
+```tut:book
 import java.net.URL
 val client = new featherbed.Client(new URL("http://localhost:8765/api/"))
 ```
@@ -28,7 +33,7 @@ lost when the relative URL is resolved.
 
 Now you can make some requests:
 
-```tut
+```tut:book
 import com.twitter.util.Await
 
 Await.result {
@@ -46,7 +51,7 @@ mapping the `Future[Response]` to a `Future[String]` which will contain the resp
 Besides `get`, the other REST verbs are also available; the process of specifying a request has a fluent API which
 can be used to fine-tune the request that will be sent.
 
-```tut
+```tut:book
 import java.nio.charset.StandardCharsets._
 
 Await.result {
@@ -63,13 +68,13 @@ Await.result {
 }
 ```
 
-```tut
+```tut:book
 Await.result {
   client.head("head/request").map(_.headerMap)
 }
 ```
 
-```tut
+```tut:book
 import com.twitter.io.Buf
 
 Await.result {
@@ -79,7 +84,7 @@ Await.result {
 }
 ```
 
-```tut
+```tut:book
 Await.result {
   client.delete("delete/request") map {
     response => response.statusCode
@@ -88,4 +93,4 @@ Await.result {
 ```
 
 
-Next, read about [Content types and Encoders](02-content-types-and-encoders.md)
+Next, read about [Content types and Encoders](02-content-types-and-encoders.html)

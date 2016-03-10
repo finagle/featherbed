@@ -1,6 +1,6 @@
 package featherbed.circe
 
-import io.circe._, io.circe.generic.auto._
+import io.circe._, io.circe.generic.auto._, io.circe.syntax._, io.circe.parser.parse
 import org.scalatest.FlatSpec
 import shapeless.{Coproduct, Witness}
 import shapeless.union.Union
@@ -37,6 +37,10 @@ class CirceSpec extends FlatSpec {
     val result = Await.result {
        req.send[Foo]()
     }
+
+    Foo("test", 42).asJson.toString
+
+    parse("""{"someText": "test", "someInt": 42}""").toValidated.map(_.as[Foo])
 
     println(result)
 

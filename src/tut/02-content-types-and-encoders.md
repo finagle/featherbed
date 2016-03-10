@@ -1,3 +1,8 @@
+---
+title: Content Types and Encoders
+layout: default
+---
+
 # Content Types and Encoders
 
 In many cases, you'll have to send content to REST services.  Most of the time, you aren't going to want to pass a `Buf`
@@ -15,7 +20,7 @@ from the Typelevel stack.
 
 First, the same setup as before:
 
-```tut
+```tut:book
 import com.twitter.util.{Future,Await}
 import com.twitter.finagle.{Service,Http}
 import com.twitter.finagle.http.{Request,Response}
@@ -37,7 +42,7 @@ Importing `featherbed.circe._` brings an implicit derivation from `io.circe.Enco
 `featherbed.content.Encoder[A, "application/json"]`.  As long as there is a Circe `Encoder[A]`
 in implicit scope, we will be able to pass `A` directly as content in featherbed requests:
 
-```tut
+```tut:book
 import io.circe.generic.auto._
 import featherbed.circe._
 
@@ -79,4 +84,4 @@ by treating `"application/json"` as a value of *type* `"application/string"` rat
 more information about singleton literals and their (amazing) implications, check out some of the projects in
 Typelevel Scala (particularly Shapeless).  Scala can do some amazing things (but it does need a little help once in a while.)
 
-Next, read about [Response Decoding and Validation](03-response-decoding-and-validation.md)
+Next, read about [Response Decoding and Validation](03-response-decoding-and-validation.html)

@@ -7,7 +7,7 @@ version := "0.1.0"
 
 libraryDependencies in ThisBuild ++= Seq(
   "com.twitter" %% "finagle-http" % "6.33.0",
-  "com.chuusai" %% "shapeless" % "2.2.5",
+  "com.chuusai" %% "shapeless" % "2.3.0",
   "org.typelevel" %% "cats" % "0.4.1",
   "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % "test",
   "org.scalatest" %% "scalatest" % "2.2.6" % "test"
