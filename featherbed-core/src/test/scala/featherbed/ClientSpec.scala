@@ -4,7 +4,6 @@ import java.net.URL
 import java.nio.charset.Charset
 
 import cats.data.Validated.{Invalid, Valid}
-import featherbed.support.LiftAllCoproduct
 import com.twitter.finagle.{Service, SimpleFilter}
 import com.twitter.finagle.http.Version.Http11
 import com.twitter.finagle.http.{Method, Status, Response, Request}
@@ -31,10 +30,10 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
 
   "Client" should "get" in {
 
-    val req = client.get("foo/bar")
+    val req = client.get("foo/bar").accept("text/plain")
 
     Await.result(for {
-      rep <- req.send[Response]()
+      rep <- req.send[String]()
     } yield ())
 
     rec verify request { req =>

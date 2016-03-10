@@ -8,8 +8,10 @@ import com.twitter.finagle.http._, RequestConfig._
 import com.twitter.io.Buf
 import com.twitter.util.Future
 import shapeless._
+import shapeless.ops.hlist.{ToCoproduct, LiftAll}
 
 import scala.annotation.implicitNotFound
+import scala.language.experimental.macros
 
 
 case class RequestBuildingError(errors: NonEmptyList[Throwable]) extends Throwable(s"Failed to build request: ${errors.unwrap.mkString(";")}")
@@ -131,6 +133,8 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
   })
 
   def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes]
+
+  def accept[T <: Coproduct](types: String*) : SelfAccepting[T] = macro littlemacros.CoproductMacros.callAcceptCoproduct
 
   def withCharset(charset: Charset) : Self
 }
