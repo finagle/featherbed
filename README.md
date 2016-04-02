@@ -16,7 +16,7 @@ The following modules are planned:
  1. `featherbed-oauth` - OAuth authenticated requests
 
 ## Documentation
-To get started with featherbed, check out the [Guide](http://jeremyrsmith.github.io/featherbed/doc/).
+To get started with featherbed, check out the [Guide](https://finagle.github.io/featherbed/doc/).
 
 ## Dependencies
 
