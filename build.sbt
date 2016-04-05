@@ -6,18 +6,19 @@ lazy val buildSettings = Seq(
   scalaVersion := "2.11.8"
 )
 
-(resolvers in ThisBuild) += Resolver.sonatypeRepo("snapshots")
-
 val finagleVersion = "6.34.0"
 val shapelessVersion = "2.3.0"
 val catsVersion = "0.4.1"
 
-libraryDependencies in ThisBuild ++= Seq(
-  "com.twitter" %% "finagle-http" % finagleVersion,
-  "com.chuusai" %% "shapeless" % shapelessVersion,
-  "org.typelevel" %% "cats" % catsVersion,
-  "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % "test",
-  "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+lazy val baseSettings = Seq(
+  libraryDependencies ++= Seq(
+    "com.twitter" %% "finagle-http" % finagleVersion,
+    "com.chuusai" %% "shapeless" % shapelessVersion,
+    "org.typelevel" %% "cats" % catsVersion,
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % "test",
+    "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+  ),
+  resolvers += Resolver.sonatypeRepo("snapshots")
 )
 
 lazy val publishSettings = Seq(
@@ -56,18 +57,19 @@ lazy val noPublish = Seq(
   publishArtifact := false
 )
 
+lazy val allSettings = publishSettings ++ baseSettings ++ buildSettings ++ tutSettings ++ Seq(
+  tutSourceDirectory := sourceDirectory.value / "tut",
+  tutTargetDirectory := thisProject.value.base / "doc"
+)
+
 lazy val `featherbed-core` = project
-  .settings(publishSettings)
+  .settings(allSettings)
 
 lazy val `featherbed-circe` = project
-  .settings(publishSettings)
+  .settings(allSettings)
   .dependsOn(`featherbed-core`)
 
 lazy val featherbed = project
   .in(file("."))
-  .settings(noPublish)
-  .dependsOn(`featherbed-core`, `featherbed-circe`)
-
-tutSettings
-tutSourceDirectory := sourceDirectory.value / "tut"
-tutTargetDirectory := thisProject.value.base / "doc"
+  .settings(baseSettings ++ buildSettings)
+  .aggregate(`featherbed-core`, `featherbed-circe`)
