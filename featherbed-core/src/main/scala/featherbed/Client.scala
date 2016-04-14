@@ -4,23 +4,54 @@ import java.net.URL
 import com.twitter.finagle._, http.RequestBuilder
 import shapeless.Coproduct
 
-
+/**
+  * A REST client with a given base URL.
+  */
 class Client private[featherbed] (private[featherbed] val backend: ClientBackend) {
 
+  /**
+    * Construct a [[Client]] with the given base URL. The URL will be used as the base for resolving resources, so
+    * it usually needs to include the trailing slash "/":
+    *
+    * When "foo/bar" is resolved against "http://example.com/api/v1", the result is "http://example.com/api/foo/bar", because
+    * "v1" is the final path segment; this usually isn't desired.  This can't be solved by resolving "/foo/bar", because
+    * that is a host-relative URI, and will result in "http://example.com/foo/bar" (removing the entire path of the
+    * base URL).
+    *
+    * When "foo/bar" is resolved against "http://example.com/api/v1/", on the other hand, the result is the desired
+    * location of "http://example.com/api/v1/foo/bar".
+    *
+    * @param baseUrl The base URL that this client will resolve resources against
+    */
   def this(baseUrl : URL) = this(ClientBackend(
     Client.forUrl(baseUrl), baseUrl))
 
+  /**
+    * Specify a GET request to be performed against the given resource
+    * @param relativePath The path to the resource, relative to the baseUrl
+    * @return A [[GetRequest]] object, which can further specify and send the request
+    */
   def get(relativePath : String) = GetRequest[Coproduct.`"*/*"`.T](
     this,
     Client.hostAndPort(backend.baseUrl),
     requestBuilder(relativePath))
 
+  /**
+    * Specify a POST request to be performed against the given resource
+    * @param relativePath The path to the resource, relative to the baseUrl
+    * @return A [[PostRequest]] object, which can further specify and send the request
+    */
   def post(relativePath : String) = PostRequest[Nothing, Nothing, None.type, Coproduct.`"*/*"`.T](
     this,
     Client.hostAndPort(backend.baseUrl),
     requestBuilder(relativePath),
     None)
 
+  /**
+    * Specify a PUT request to be performed against the given resource
+    * @param relativePath The path to the resource, relative to the baseUrl
+    * @return A [[PutRequest]] object, which can further specify and send the request
+    */
   def put(relativePath : String) = PutRequest[Nothing, Nothing, None.type, Coproduct.`"*/*"`.T](
     this,
     Client.hostAndPort(backend.baseUrl),
@@ -28,9 +59,19 @@ class Client private[featherbed] (private[featherbed] val backend: ClientBackend
     multipart = false,
     None)
 
+  /**
+    * Specify a HEAD request to be performed against the given resource
+    * @param relativePath The path to the resource, relative to the baseUrl
+    * @return A [[HeadRequest]] object, which can further specify and send the request
+    */
   def head(relativePath : String) =
     HeadRequest(this, Client.hostAndPort(backend.baseUrl), requestBuilder(relativePath))
 
+  /**
+    * Specify a DELETE request to be performed against the given resource
+    * @param relativePath The path to the resource, relative to the baseUrl
+    * @return A [[DeleteRequest]] object, which can further specify and send the request
+    */
   def delete(relativePath : String) =
     DeleteRequest[Coproduct.`"*/*"`.T](this, Client.hostAndPort(backend.baseUrl), requestBuilder(relativePath))
 

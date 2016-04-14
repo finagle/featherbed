@@ -16,6 +16,11 @@ import scala.language.experimental.macros
 
 case class RequestBuildingError(errors: NonEmptyList[Throwable]) extends Throwable(s"Failed to build request: ${errors.unwrap.mkString(";")}")
 
+/**
+  * Represents evidence that the request can be built.  For requests that include content, this requires that an implicit
+  * [[content.Encoder]] is available for the given Content-Type.
+  * @tparam T
+  */
 @implicitNotFound("""The request of type $T cannot be built.  This is most likely because either:
   1. If the request is a POST, PUT, or PATCH request:
      a. The request requires a Content-Type to be defined, but one was not defined (using the withContent method)
@@ -66,9 +71,26 @@ object CanBuildRequest {
 
 }
 
+/**
+  * Represents a [[Response]] which was not valid, because:
+  * 1. It did not conform to the specification of the `Accept` header that was specified in the request, and/or
+  * 2. The Content-Type was missing or there was no available decoder, or
+  * 3. Decoding of the request failed
+  * @param response The original [[Response]], so it can be further processed if desired
+  * @param reason A [[String]] describing why the response was invalid
+  */
 case class InvalidResponse(response: Response, reason: String)
 
 
+/**
+  * Forms the base for specifying HTTP Requests.  This class should not be used directly.
+  * @param client The [[Client]] object that originated the request specification
+  * @param dest The destination of the request
+  * @param requestBuilder The finagle [[RequestBuilder]] that is building the request
+  * @tparam HasUrl Whether the URL has been specified
+  * @tparam HasForm Whether content has been specified
+  * @tparam Accept The Content-Type(s) which will be sent in the Accept header
+  */
 abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
   client: Client,
   dest: String,
@@ -78,6 +100,11 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
   type SelfAccepting[A <: Coproduct]
   val charset: Charset
 
+  /**
+    * Send the request, decoding the response as [[K]]
+    * @tparam K The type to which the response will be decoded
+    * @return A future which will contain a validated response
+    */
   def send[K]()(implicit ev: this.type <:< Self,
     canBuild: CanBuildRequest[Self],
     decodeAll: DecodeAll[K, Accept]) : Future[Validated[InvalidResponse,K]] =
@@ -131,10 +158,32 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
     case (b, (k, v)) => b.addHeader(k,v)
   })
 
+  /**
+    * Specify which content types are accepted, using type syntax (i.e. Coproduct.`"text/plain","text/html"`.T)
+    * The given content types will be included in the Accept header.  If the request already specified content
+    * types, they will be replaced.
+    * @tparam ContentTypes The content types, specified as a shapeless.Coproduct of singleton literals
+    * @return A request specification using the given accepted content types
+    */
   def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes]
 
+  /**
+    * Specify which content types are accepted, using literal syntax.  The strings passed in will be lifted to a
+    * Coproduct type.
+    *
+    * The given content types will be included in the Accept header.  If the request already specified content
+    * types, they will be replaced.
+    *
+    * @param types The MIME types to accept, given as Strings (i.e. "text/plain")
+    * @return A request specification using the given accepted content types
+    */
   def accept[T <: Coproduct](types: String*) : SelfAccepting[T] = macro littlemacros.CoproductMacros.callAcceptCoproduct
 
+  /**
+    * Change the character set to use for sending the request
+    * @param charset The new [[Charset]]
+    * @return A request specification which will use the given character set to send the request
+    */
   def withCharset(charset: Charset) : Self
 }
 
