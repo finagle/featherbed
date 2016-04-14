@@ -17,12 +17,11 @@ import scala.language.experimental.macros
 case class RequestBuildingError(errors: NonEmptyList[Throwable]) extends Throwable(s"Failed to build request: ${errors.unwrap.mkString(";")}")
 
 @implicitNotFound("""The request of type $T cannot be built.  This is most likely because either:
-  1. It requires a Content-Type to be defined, but one was not defined (using the withContent method)
-  2. No Encoder is available for the request's Content-Type.  This is usually a matter of importing the right module.
-  3. Due to a scala bug, a request sometimes needs to be assigned to a concrete value in order to be able to prove its type.  If
-     you're calling map or flatMap directly on a `client.get(..).etc().etc()` expression, or using one directly in a for-comprehension,
-     try assigning that request to a value and using the value instead.
-  4. Something is missing from featherbed""")
+  1. If the request is a POST, PUT, or PATCH request:
+     a. The request requires a Content-Type to be defined, but one was not defined (using the withContent method)
+     b. An Encoder is required for the request's Content-Type, but one was not available in implicit scope. This is
+        usually a matter of importing the right module to obtain the Encoder instance.
+  2. Something is missing from featherbed""")
 sealed trait CanBuildRequest[T] {
   def build(t: T) : ValidatedNel[Throwable, Request]
 }
