@@ -1,8 +1,8 @@
 name := "featherbed"
 
 lazy val buildSettings = Seq(
-  organization := "com.github.finagle",
-  version := "0.1.0",
+  organization := "io.github.finagle",
+  version := "0.1.0-SNAPSHOT",
   scalaVersion := "2.11.8"
 )
 
