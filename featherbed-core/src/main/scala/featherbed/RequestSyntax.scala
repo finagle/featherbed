@@ -1,14 +1,17 @@
 package featherbed
 
 import java.nio.charset.Charset
-import featherbed.support.{DecodeAll, RuntimeContentType, ContentTypeSupport}
-import cats.data.{NonEmptyList, Validated, ValidatedNel}, Validated._
+
+import featherbed.support.{AcceptHeader, ContentTypeSupport, DecodeAll, RuntimeContentType}
+import cats.data.{NonEmptyList, Validated, ValidatedNel}
+import Validated._
 import cats.std.list._
-import com.twitter.finagle.http._, RequestConfig._
+import com.twitter.finagle.http._
+import RequestConfig._
 import com.twitter.io.Buf
 import com.twitter.util.Future
 import shapeless._
-import shapeless.ops.hlist.{ToCoproduct, LiftAll}
+import shapeless.ops.hlist.{LiftAll, ToCoproduct}
 
 import scala.annotation.implicitNotFound
 import scala.language.experimental.macros
@@ -33,39 +36,90 @@ sealed trait CanBuildRequest[T] {
 
 object CanBuildRequest {
 
-  implicit def canBuildGetRequest[Accept <: Coproduct] : CanBuildRequest[GetRequest[Accept]] = new CanBuildRequest[GetRequest[Accept]] {
-    def build(getRequest: GetRequest[Accept]) = Valid(getRequest.requestBuilder.buildGet())
+  implicit def canBuildGetRequest[Accept <: Coproduct](implicit
+    accept: AcceptHeader[Accept]
+  ) : CanBuildRequest[GetRequest[Accept]] = new CanBuildRequest[GetRequest[Accept]] {
+    def build(getRequest: GetRequest[Accept]) =
+      Valid(getRequest.requestBuilder.addHeader("Accept", accept.toString).buildGet())
   }
-  implicit def canBuildPostRequestWithContentBuffer[Accept <: Coproduct, CT <: content.ContentType] : CanBuildRequest[PostRequest[Buf, CT, Some[Buf], Accept]] =
+
+  implicit def canBuildPostRequestWithContentBuffer[Accept <: Coproduct, CT <: content.ContentType](implicit
+    accept: AcceptHeader[Accept],
+    witness: Witness.Aux[CT]
+  ) : CanBuildRequest[PostRequest[Buf, CT, Some[Buf], Accept]] =
     new CanBuildRequest[PostRequest[Buf, CT, Some[Buf], Accept]] {
       def build(postRequest: PostRequest[Buf, CT, Some[Buf], Accept]) =
-        Valid(postRequest.requestBuilder.buildPost(postRequest.content.get))   //I justify this Option#get because it is known at a typelevel to be Some.
+        Valid(postRequest
+          .requestBuilder
+          .addHeader("Accept", accept.toString)
+          .buildPost(postRequest.content.get))   //I justify this Option#get because it is known at a typelevel to be Some.
     }
-  implicit def canBuildFormPostRequest[Accept <: Coproduct] : CanBuildRequest[FormPostRequest[Accept]] = new CanBuildRequest[FormPostRequest[Accept]] {
-    def build(formPostRequest: FormPostRequest[Accept]) = Valid(formPostRequest.requestBuilder.buildFormPost(formPostRequest.multipart))
+
+  implicit def canBuildFormPostRequest[Accept <: Coproduct](implicit
+    accept: AcceptHeader[Accept]
+  ) : CanBuildRequest[FormPostRequest[Accept]] = new CanBuildRequest[FormPostRequest[Accept]] {
+    def build(formPostRequest: FormPostRequest[Accept]) =
+      Valid(
+        formPostRequest
+          .requestBuilder
+          .addHeader("Accept", accept.toString)
+          .buildFormPost(formPostRequest.multipart))
   }
-  implicit def canBuildPutRequest[Accept <: Coproduct, CT <: content.ContentType] : CanBuildRequest[PutRequest[Buf, CT, Some[Buf], Accept]] = new CanBuildRequest[PutRequest[Buf, CT, Some[Buf], Accept]] {
-    def build(putRequest: PutRequest[Buf, CT, Some[Buf], Accept]) = Valid(putRequest.requestBuilder.buildPut(putRequest.content.get))
-  }
+
+  implicit def canBuildPutRequest[Accept <: Coproduct, CT <: content.ContentType](implicit
+    accept: AcceptHeader[Accept],
+    witness: Witness.Aux[CT]
+  ) : CanBuildRequest[PutRequest[Buf, CT, Some[Buf], Accept]] =
+    new CanBuildRequest[PutRequest[Buf, CT, Some[Buf], Accept]] {
+      def build(putRequest: PutRequest[Buf, CT, Some[Buf], Accept]) =
+        Valid(putRequest
+          .requestBuilder
+          .addHeader("Accept", accept.toString)
+          .buildPut(putRequest.content.get))  //Again, we know content is Some at type level
+    }
+
   implicit val canBuildHeadRequest = new CanBuildRequest[HeadRequest] {
     def build(headRequest: HeadRequest) = Valid(headRequest.requestBuilder.buildHead())
   }
-  implicit def canBuildDeleteRequest[Accept <: Coproduct] : CanBuildRequest[DeleteRequest[Accept]] = new CanBuildRequest[DeleteRequest[Accept]] {
-    def build(deleteRequest: DeleteRequest[Accept]) = Valid(deleteRequest.requestBuilder.buildDelete())
+
+  implicit def canBuildDeleteRequest[Accept <: Coproduct](implicit
+    accept: AcceptHeader[Accept]
+  ) : CanBuildRequest[DeleteRequest[Accept]] = new CanBuildRequest[DeleteRequest[Accept]] {
+    def build(deleteRequest: DeleteRequest[Accept]) =
+      Valid(deleteRequest
+        .requestBuilder
+        .addHeader("Accept", accept.toString)
+        .buildDelete())
   }
 
-  implicit def canBuildPostRequestWithEncoder[Accept <: Coproduct, A, CT](
-    implicit encoder: content.Encoder[A, CT]) : CanBuildRequest[PostRequest[A, CT, Some[A], Accept]] =
+  implicit def canBuildPostRequestWithEncoder[Accept <: Coproduct, A, CT <: content.ContentType](implicit
+    encoder: content.Encoder[A, CT],
+    witness: Witness.Aux[CT],
+    accept: AcceptHeader[Accept]
+  ) : CanBuildRequest[PostRequest[A, CT, Some[A], Accept]] =
     new CanBuildRequest[PostRequest[A, CT, Some[A], Accept]] {
       def build(postRequest: PostRequest[A, CT, Some[A], Accept]) =
-        encoder(postRequest.content.get, postRequest.charset).map(postRequest.requestBuilder.buildPost)
+        encoder(postRequest.content.get, postRequest.charset).map { buf =>
+          postRequest
+            .requestBuilder
+            .addHeader("Accept", accept.toString)
+            .buildPost(buf)
+        }
     }
 
-  implicit def canBuildPutRequestWithEncoder[Accept <: Coproduct, A, CT](
-    implicit encoder: content.Encoder[A, CT]) : CanBuildRequest[PutRequest[A, CT, Some[A], Accept]] =
+  implicit def canBuildPutRequestWithEncoder[Accept <: Coproduct, A, CT <: content.ContentType](implicit
+    encoder: content.Encoder[A, CT],
+    witness: Witness.Aux[CT],
+    accept: AcceptHeader[Accept]
+  ) : CanBuildRequest[PutRequest[A, CT, Some[A], Accept]] =
       new CanBuildRequest[PutRequest[A, CT, Some[A], Accept]] {
         def build(putRequest: PutRequest[A, CT, Some[A], Accept]) =
-          encoder(putRequest.content.get, putRequest.charset).map(putRequest.requestBuilder.buildPut)
+          encoder(putRequest.content.get, putRequest.charset).map { buf =>
+            putRequest
+              .requestBuilder
+              .addHeader("Accept", accept.toString)
+              .buildPut(buf)
+          }
       }
 
 
@@ -292,7 +346,7 @@ case class PutRequest[
 case class HeadRequest private[featherbed](private val client: Client,
   private val dest: String,
   private val rb: RequestBuilder[Yes, Nothing],
-  charset: Charset = Charset.defaultCharset) extends RequestSyntax[Yes, Nothing, Nothing](client, dest, rb) {
+  charset: Charset = Charset.defaultCharset) extends RequestSyntax[Yes, Nothing, Coproduct.`"*/*"`.T](client, dest, rb) {
 
   type Self = HeadRequest
   override type SelfAccepting[A] = Self
@@ -308,7 +362,7 @@ case class HeadRequest private[featherbed](private val client: Client,
 case class DeleteRequest[Accept <: Coproduct] private[featherbed](private val client: Client,
   private val dest: String,
   private val rb: RequestBuilder[Yes, Nothing],
-  charset: Charset = Charset.defaultCharset) extends RequestSyntax[Yes, Nothing, Nothing](client, dest, rb) {
+  charset: Charset = Charset.defaultCharset) extends RequestSyntax[Yes, Nothing, Accept](client, dest, rb) {
 
   type Self = DeleteRequest[Accept]
   type SelfAccepting[A <: Coproduct] = DeleteRequest[A]

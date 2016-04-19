@@ -18,7 +18,7 @@ package object content {
 
   trait Decoder[ContentType] {
     type Out
-    val contentType: String //widened version of Out
+    val contentType: String //widened version of ContentType
     def apply(buf: Response): ValidatedNel[Throwable, Out]
   }
 

@@ -17,16 +17,16 @@ import shapeless.{:+:, CNil, Witness}
 
 class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAndAfterEach {
 
-  val rec = stubFunction[Request, Unit]("receiveRequest")
+  val receiver = stubFunction[Request, Unit]("receiveRequest")
 
-  object F extends SimpleFilter[Request, Response] {
+  object InterceptRequest extends SimpleFilter[Request, Response] {
     override def apply(request: Request, service: Service[Request, Response]): Future[Response] = {
-      rec(request)
+      receiver(request)
       Future(Response())
     }
   }
 
-  val client = mockClient("http://example.com/api/v1/", F)
+  val client = mockClient("http://example.com/api/v1/", InterceptRequest)
 
   "Client" should "get" in {
 
@@ -36,9 +36,10 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
       rep <- req.send[String]()
     } yield ())
 
-    rec verify request { req =>
+    receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
       assert(req.method == Method.Get)
+      assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
     }
 
   }
@@ -47,19 +48,93 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
     val req = client
       .post("foo/bar")
       .withContent("Hello world", "text/plain")
+      .accept("text/plain")
 
 
     Await.result(for {
-      rep <- req
+      rep <- req.send[String]()
     } yield ())
 
-    rec verify request { req =>
+    receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
       assert(req.method == Method.Post)
       assert(req.headerMap("Content-Type") == s"text/plain; charset=${Charset.defaultCharset.name}")
       assert(req.contentString == "Hello world")
+      assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
     }
+  }
 
+  it should "post a form" in {
+    val req = client
+      .post("foo/bar")
+      .withForm("foo" -> "bar", "bar" -> "baz")
+      .accept("text/plain")
+
+    Await.result(req.send[String]())
+
+    receiver verify request { req =>
+      assert(req.uri == "/api/v1/foo/bar")
+      assert(req.method == Method.Post)
+      assert(req.headerMap("Content-Type") == s"application/x-www-form-urlencoded")
+      assert(req.contentString == "foo=bar&bar=baz")
+      assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
+    }
+  }
+
+  it should "make a head request" in {
+    val req = client
+      .head("foo/bar")
+
+    Await.result(req.send[Response]())
+
+    receiver verify request { req =>
+      assert(req.uri == "/api/v1/foo/bar")
+      assert(req.method == Method.Head)
+    }
+  }
+
+  it should "delete" in {
+    val req = client
+      .delete("foo/bar")
+      .accept("text/plain")
+
+    Await.result(req.send[String]())
+
+    receiver verify request { req =>
+      assert(req.uri == "/api/v1/foo/bar")
+      assert(req.method == Method.Delete)
+    }
+  }
+
+  it should "put" in {
+    val req = client
+      .put("foo/bar")
+      .withContent("Hello world", "text/plain")
+      .accept("text/plain")
+
+    Await.result(req.send[String]())
+
+    receiver verify request { req =>
+      assert(req.uri == "/api/v1/foo/bar")
+      assert(req.method == Method.Put)
+      assert(req.contentType == Some(s"text/plain; charset=${Charset.defaultCharset.name}"))
+      assert(req.contentString == "Hello world")
+    }
+  }
+
+  "Compile" should "fail when no encoder is available for the request" in {
+    assertDoesNotCompile(
+      """
+        client.put("foo/bar").withContent("Hello world", "no/encoder").accept("*/*").send[Response]()
+      """)
+  }
+
+  it should "fail when no decoder is available for the response" in {
+    assertDoesNotCompile(
+      """
+        client.get("foo/bar").accept("pie/pumpkin").send[String]()
+      """.stripMargin
+    )
   }
 
 }
