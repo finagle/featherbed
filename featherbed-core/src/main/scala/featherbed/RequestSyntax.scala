@@ -1,5 +1,6 @@
 package featherbed
 
+import java.net.URL
 import java.nio.charset.Charset
 
 import featherbed.support.{AcceptHeader, ContentTypeSupport, DecodeAll, RuntimeContentType}
@@ -11,10 +12,10 @@ import RequestConfig._
 import com.twitter.io.Buf
 import com.twitter.util.Future
 import shapeless._
-import shapeless.ops.hlist.{LiftAll, ToCoproduct}
 
 import scala.annotation.implicitNotFound
 import scala.language.experimental.macros
+import scala.util.Try
 
 
 case class RequestBuildingError(errors: NonEmptyList[Throwable]) extends Throwable(s"Failed to build request: ${errors.unwrap.mkString(";")}")
@@ -22,6 +23,7 @@ case class RequestBuildingError(errors: NonEmptyList[Throwable]) extends Throwab
 /**
   * Represents evidence that the request can be built.  For requests that include content, this requires that an implicit
   * [[content.Encoder]] is available for the given Content-Type.
+  *
   * @tparam T
   */
 @implicitNotFound("""The request of type $T cannot be built.  This is most likely because either:
@@ -40,7 +42,13 @@ object CanBuildRequest {
     accept: AcceptHeader[Accept]
   ) : CanBuildRequest[GetRequest[Accept]] = new CanBuildRequest[GetRequest[Accept]] {
     def build(getRequest: GetRequest[Accept]) =
-      Valid(getRequest.requestBuilder.addHeader("Accept", accept.toString).buildGet())
+      getRequest.buildURL.map[Request] { url: URL =>
+        getRequest
+          .requestBuilder
+          .url(url)
+          .addHeader("Accept", accept.toString)
+          .buildGet()
+      }
   }
 
   implicit def canBuildPostRequestWithContentBuffer[Accept <: Coproduct, CT <: content.ContentType](implicit
@@ -49,21 +57,26 @@ object CanBuildRequest {
   ) : CanBuildRequest[PostRequest[Buf, CT, Some[Buf], Accept]] =
     new CanBuildRequest[PostRequest[Buf, CT, Some[Buf], Accept]] {
       def build(postRequest: PostRequest[Buf, CT, Some[Buf], Accept]) =
-        Valid(postRequest
+      postRequest.buildURL.map[Request] { url: URL =>
+        postRequest
           .requestBuilder
+          .url(url)
           .addHeader("Accept", accept.toString)
-          .buildPost(postRequest.content.get))   //I justify this Option#get because it is known at a typelevel to be Some.
+          .buildPost(postRequest.content.get)   //I justify this Option#get because it is known at a typelevel to be Some.
+      }
     }
 
   implicit def canBuildFormPostRequest[Accept <: Coproduct](implicit
     accept: AcceptHeader[Accept]
   ) : CanBuildRequest[FormPostRequest[Accept]] = new CanBuildRequest[FormPostRequest[Accept]] {
     def build(formPostRequest: FormPostRequest[Accept]) =
-      Valid(
+      formPostRequest.buildURL.map[Request] { url: URL =>
         formPostRequest
           .requestBuilder
+          .url(url)
           .addHeader("Accept", accept.toString)
-          .buildFormPost(formPostRequest.multipart))
+          .buildFormPost(formPostRequest.multipart)
+      }
   }
 
   implicit def canBuildPutRequest[Accept <: Coproduct, CT <: content.ContentType](implicit
@@ -72,24 +85,32 @@ object CanBuildRequest {
   ) : CanBuildRequest[PutRequest[Buf, CT, Some[Buf], Accept]] =
     new CanBuildRequest[PutRequest[Buf, CT, Some[Buf], Accept]] {
       def build(putRequest: PutRequest[Buf, CT, Some[Buf], Accept]) =
-        Valid(putRequest
+      putRequest.buildURL.map[Request] { url: URL =>
+        putRequest
           .requestBuilder
+          .url(url)
           .addHeader("Accept", accept.toString)
-          .buildPut(putRequest.content.get))  //Again, we know content is Some at type level
+          .buildPut(putRequest.content.get)  //Again, we know content is Some at type level
+      }
     }
 
   implicit val canBuildHeadRequest = new CanBuildRequest[HeadRequest] {
-    def build(headRequest: HeadRequest) = Valid(headRequest.requestBuilder.buildHead())
+    def build(headRequest: HeadRequest) = headRequest.buildURL.map[Request] { url: URL =>
+      headRequest.requestBuilder.url(url).buildHead()
+    }
   }
 
   implicit def canBuildDeleteRequest[Accept <: Coproduct](implicit
     accept: AcceptHeader[Accept]
   ) : CanBuildRequest[DeleteRequest[Accept]] = new CanBuildRequest[DeleteRequest[Accept]] {
     def build(deleteRequest: DeleteRequest[Accept]) =
-      Valid(deleteRequest
-        .requestBuilder
-        .addHeader("Accept", accept.toString)
-        .buildDelete())
+      deleteRequest.buildURL.map[Request] { url: URL =>
+        deleteRequest
+          .requestBuilder
+          .url(url)
+          .addHeader("Accept", accept.toString)
+          .buildDelete()
+      }
   }
 
   implicit def canBuildPostRequestWithEncoder[Accept <: Coproduct, A, CT <: content.ContentType](implicit
@@ -99,11 +120,14 @@ object CanBuildRequest {
   ) : CanBuildRequest[PostRequest[A, CT, Some[A], Accept]] =
     new CanBuildRequest[PostRequest[A, CT, Some[A], Accept]] {
       def build(postRequest: PostRequest[A, CT, Some[A], Accept]) =
-        encoder(postRequest.content.get, postRequest.charset).map { buf =>
-          postRequest
-            .requestBuilder
-            .addHeader("Accept", accept.toString)
-            .buildPost(buf)
+        postRequest.buildURL.ap[NonEmptyList[Throwable], Request] {
+          encoder(postRequest.content.get, postRequest.charset).map[URL => Request] { buf: Buf => url: URL =>
+            postRequest
+              .requestBuilder
+              .url(url)
+              .addHeader("Accept", accept.toString)
+              .buildPost(buf)
+          }
         }
     }
 
@@ -114,14 +138,16 @@ object CanBuildRequest {
   ) : CanBuildRequest[PutRequest[A, CT, Some[A], Accept]] =
       new CanBuildRequest[PutRequest[A, CT, Some[A], Accept]] {
         def build(putRequest: PutRequest[A, CT, Some[A], Accept]) =
-          encoder(putRequest.content.get, putRequest.charset).map { buf =>
-            putRequest
-              .requestBuilder
-              .addHeader("Accept", accept.toString)
-              .buildPut(buf)
+          putRequest.buildURL.ap[NonEmptyList[Throwable], Request] {
+            encoder(putRequest.content.get, putRequest.charset).map[URL => Request] { buf: Buf => url: URL =>
+              putRequest
+                .requestBuilder
+                .url(url)
+                .addHeader("Accept", accept.toString)
+                .buildPut(buf)
+            }
           }
       }
-
 
 }
 
@@ -130,6 +156,7 @@ object CanBuildRequest {
   * 1. It did not conform to the specification of the `Accept` header that was specified in the request, and/or
   * 2. The Content-Type was missing or there was no available decoder, or
   * 3. Decoding of the request failed
+  *
   * @param response The original [[Response]], so it can be further processed if desired
   * @param reason A [[String]] describing why the response was invalid
   */
@@ -138,8 +165,9 @@ case class InvalidResponse(response: Response, reason: String)
 
 /**
   * Forms the base for specifying HTTP Requests.  This class should not be used directly.
+  *
   * @param client The [[Client]] object that originated the request specification
-  * @param dest The destination of the request
+  * @param url The destination of the request
   * @param requestBuilder The finagle [[RequestBuilder]] that is building the request
   * @tparam HasUrl Whether the URL has been specified
   * @tparam HasForm Whether content has been specified
@@ -147,7 +175,9 @@ case class InvalidResponse(response: Response, reason: String)
   */
 abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
   client: Client,
-  dest: String,
+  url: URL,
+  path: String,
+  params: Map[String, String],
   protected[featherbed] val requestBuilder: RequestBuilder[HasUrl, HasForm]){
 
   type Self <: RequestSyntax[HasUrl,HasForm,Accept]
@@ -156,6 +186,7 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
 
   /**
     * Send the request, decoding the response as [[K]]
+    *
     * @tparam K The type to which the response will be decoded
     * @return A future which will contain a validated response
     */
@@ -169,7 +200,7 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
       } yield {
         rep.contentType flatMap ContentTypeSupport.contentTypePieces match {
           case None => Invalid(InvalidResponse(rep, "Content-Type header is not present"))
-          case Some(RuntimeContentType(mediaType, params)) =>
+          case Some(RuntimeContentType(mediaType, _)) =>
             decodeAll.instances.find(_.contentType == mediaType) match {
               case Some(decoder) => decoder(rep).leftMap(errs => InvalidResponse(rep, errs.unwrap.map(_.getMessage).mkString("; ")))
               case None => Invalid(InvalidResponse(rep, s"No decoder was found for $mediaType"))
@@ -207,6 +238,9 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
   protected[featherbed] def buildRequest(implicit canBuild: CanBuildRequest[Self], ev: this.type <:< Self) : ValidatedNel[Throwable, Request] =
     canBuild.build(this : Self)
 
+  protected[featherbed] def buildURL: ValidatedNel[Throwable, URL] =
+    Validated.fromTry[URL](Try(new URL(Request.queryString(url.toString + path, params)))).toValidatedNel
+
   def withHeader(name: String, value: String) : Self = withBuilder(requestBuilder.addHeader(name, value))
   def withHeaders(headers: (String, String)*) : Self = withBuilder(requestBuilder = headers.foldLeft(requestBuilder) {
     case (b, (k, v)) => b.addHeader(k,v)
@@ -216,6 +250,7 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
     * Specify which content types are accepted, using type syntax (i.e. Coproduct.`"text/plain","text/html"`.T)
     * The given content types will be included in the Accept header.  If the request already specified content
     * types, they will be replaced.
+    *
     * @tparam ContentTypes The content types, specified as a shapeless.Coproduct of singleton literals
     * @return A request specification using the given accepted content types
     */
@@ -235,6 +270,7 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
 
   /**
     * Change the character set to use for sending the request
+    *
     * @param charset The new [[Charset]]
     * @return A request specification which will use the given character set to send the request
     */
@@ -243,16 +279,19 @@ abstract class RequestSyntax[HasUrl,HasForm,Accept <: Coproduct](
 
 case class GetRequest[Accept <: Coproduct] private[featherbed] (
     private val client: Client,
-    private val dest: String,
-    private val rb: RequestBuilder[Yes, Nothing],
+    private val url: URL,
+    private val path: String,
+    private val params: Map[String, String],
+    private val rb: RequestBuilder[Nothing, Nothing],
     charset: Charset = Charset.defaultCharset
-  ) extends RequestSyntax[Yes, Nothing, Accept](client, dest, rb) {
+  ) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, params, rb) {
 
   type Self = GetRequest[Accept]
   override type SelfAccepting[A <: Coproduct] = GetRequest[A]
 
-  def withBuilder(newRequestBuilder: RequestBuilder[Yes, Nothing]) = copy(rb = newRequestBuilder)
+  def withBuilder(newRequestBuilder: RequestBuilder[Nothing, Nothing]) = copy(rb = newRequestBuilder)
   def withCharset(newCharset : Charset) = copy(charset = newCharset)
+  def withParams(newParams : Map[String, String]) = copy[Accept](params = params ++ newParams)
   def accept[ContentTypes <: Coproduct]: SelfAccepting[ContentTypes] =
     copy[ContentTypes]()
 }
@@ -264,25 +303,27 @@ case class PostRequest[
   Accept <: Coproduct
 ] private[featherbed] (
     private val client: Client,
-    private val dest : String,
-    private val rb: RequestBuilder[Yes, Nothing],
+    private val url: URL,
+    private val path: String,
+    private val params: Map[String, String],
+    private val rb: RequestBuilder[Nothing, Nothing],
     private[featherbed] val content: Option[Content],
     charset: Charset = Charset.defaultCharset
-  ) extends RequestSyntax[Yes, Nothing, Accept](client, dest, rb) {
+  ) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, params, rb) {
 
   type Self = PostRequest[Content, WithContentType, ContentProvided, Accept]
   override type SelfAccepting[A <: Coproduct] = PostRequest[Content, WithContentType, ContentProvided, A]
 
-  override protected def withBuilder(newRequestBuilder: RequestBuilder[Yes, Nothing]): Self =
+  override protected def withBuilder(newRequestBuilder: RequestBuilder[Nothing, Nothing]): Self =
     copy(rb = newRequestBuilder)
 
   def withCharset(newCharset : Charset) = copy(charset = newCharset)
 
   def withForm(fields: (String, String)*)(implicit ev: Content =:= Nothing) =
-    new FormPostRequest(client, dest, requestBuilder.addFormElement(fields:_*))
+    new FormPostRequest(client, url, path, params, requestBuilder.addFormElement(fields:_*))
 
   def withFormFile(name: String, content: Buf, contentType: Option[String] = None, filename: Option[String] = None) =
-    new FormPostRequest(client, dest, requestBuilder.add(FileElement(name, content, contentType, filename)))
+    new FormPostRequest(client, url, path, params, requestBuilder.add(FileElement(name, content, contentType, filename)))
 
   def withContent[A, ContentType <: featherbed.content.ContentType](newContent : A, contentType: ContentType)(implicit wit: Witness.Aux[contentType.type]) = {
     copy[A, contentType.type, Some[A], Accept](content = Some(newContent), rb = requestBuilder.setHeader("Content-Type", contentType + s"; charset=${charset.name}"))
@@ -294,16 +335,18 @@ case class PostRequest[
 
 case class FormPostRequest[Accept <: Coproduct] private[featherbed] (
     private val client: Client,
-    private val dest : String,
-    private val rb: RequestBuilder[Yes, Yes],
+    private val url: URL,
+    private val path: String,
+    private val params: Map[String, String],
+    private val rb: RequestBuilder[Nothing, Yes],
     private[featherbed] val multipart : Boolean = false,
     charset: Charset = Charset.defaultCharset
-  ) extends RequestSyntax[Yes, Yes, Accept](client, dest, rb) {
+  ) extends RequestSyntax[Nothing, Yes, Accept](client, url, path, params, rb) {
 
   type Self = FormPostRequest[Accept]
   override type SelfAccepting[A <: Coproduct] = FormPostRequest[A]
 
-  override protected def withBuilder(newRequestBuilder: RequestBuilder[Yes, Yes]): Self =
+  override protected def withBuilder(newRequestBuilder: RequestBuilder[Nothing, Yes]): Self =
     copy(rb = newRequestBuilder)
 
   def withCharset(newCharset : Charset) = copy(charset = newCharset)
@@ -321,17 +364,19 @@ case class PutRequest[
   Accept <: Coproduct
 ] private[featherbed] (
     private val client: Client,
-    private val dest : String,
-    private val rb: RequestBuilder[Yes, Nothing],
+    private val url: URL,
+    private val path: String,
+    private val params: Map[String, String],
+    private val rb: RequestBuilder[Nothing, Nothing],
     private[featherbed] val multipart : Boolean = false,
     private[featherbed] val content: ContentProvided,
     charset: Charset = Charset.defaultCharset
-  ) extends RequestSyntax[Yes, Nothing, Accept](client, dest, rb) {
+  ) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, params, rb) {
 
   type Self = PutRequest[Content, WithContentType, ContentProvided, Accept]
   override type SelfAccepting[A <: Coproduct] = PutRequest[Content, WithContentType, ContentProvided, A]
 
-  protected def withBuilder(newRequestBuilder: RequestBuilder[Yes, Nothing]): Self =
+  protected def withBuilder(newRequestBuilder: RequestBuilder[Nothing, Nothing]): Self =
     copy(rb = newRequestBuilder)
 
   def withCharset(newCharset : Charset) = copy(charset = newCharset)
@@ -344,9 +389,11 @@ case class PutRequest[
 }
 
 case class HeadRequest private[featherbed](private val client: Client,
-  private val dest: String,
-  private val rb: RequestBuilder[Yes, Nothing],
-  charset: Charset = Charset.defaultCharset) extends RequestSyntax[Yes, Nothing, Coproduct.`"*/*"`.T](client, dest, rb) {
+  private val url: URL,
+  private val path: String,
+  private val params: Map[String, String],
+  private val rb: RequestBuilder[Nothing, Nothing],
+  charset: Charset = Charset.defaultCharset) extends RequestSyntax[Nothing, Nothing, Coproduct.`"*/*"`.T](client, url, path, params, rb) {
 
   type Self = HeadRequest
   override type SelfAccepting[A] = Self
@@ -354,20 +401,22 @@ case class HeadRequest private[featherbed](private val client: Client,
   // Doesn't make sense to Accept in a HEAD request
   def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes] = this
 
-  protected def withBuilder(newRequestBuilder: RequestBuilder[Yes, Nothing]): HeadRequest = copy(rb = newRequestBuilder)
+  protected def withBuilder(newRequestBuilder: RequestBuilder[Nothing, Nothing]): HeadRequest = copy(rb = newRequestBuilder)
 
   def withCharset(newCharset: Charset): HeadRequest = copy(charset = newCharset)
 }
 
 case class DeleteRequest[Accept <: Coproduct] private[featherbed](private val client: Client,
-  private val dest: String,
-  private val rb: RequestBuilder[Yes, Nothing],
-  charset: Charset = Charset.defaultCharset) extends RequestSyntax[Yes, Nothing, Accept](client, dest, rb) {
+  private val url: URL,
+  private val path: String,
+  private val params: Map[String, String],
+  private val rb: RequestBuilder[Nothing, Nothing],
+  charset: Charset = Charset.defaultCharset) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, params, rb) {
 
   type Self = DeleteRequest[Accept]
   type SelfAccepting[A <: Coproduct] = DeleteRequest[A]
 
-  def withBuilder(newRequestBuilder : RequestBuilder[Yes, Nothing]) = copy(rb = newRequestBuilder)
+  def withBuilder(newRequestBuilder : RequestBuilder[Nothing, Nothing]) = copy(rb = newRequestBuilder)
   def withCharset(newCharset : Charset) = copy(charset = newCharset)
   def accept[ContentTypes <: Coproduct] : SelfAccepting[ContentTypes] = copy[ContentTypes]()
 

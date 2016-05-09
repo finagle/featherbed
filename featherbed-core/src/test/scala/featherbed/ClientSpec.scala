@@ -1,19 +1,12 @@
 package featherbed
 
-import java.net.URL
 import java.nio.charset.Charset
 
-import cats.data.Validated.{Invalid, Valid}
 import com.twitter.finagle.{Service, SimpleFilter}
-import com.twitter.finagle.http.Version.Http11
-import com.twitter.finagle.http.{Method, Status, Response, Request}
-import com.twitter.finagle.transport.Transport
+import com.twitter.finagle.http.{Method, Request, Response, Status}
 import com.twitter.util.{Await, Future}
-import org.jboss.netty.handler.codec.http._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterEach, FlatSpec}
-import shapeless.{:+:, CNil, Witness}
-
 
 class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAndAfterEach {
 
