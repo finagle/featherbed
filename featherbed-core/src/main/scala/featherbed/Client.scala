@@ -59,13 +59,13 @@ class Client private[featherbed] (private[featherbed] val backend: ClientBackend
     * @return A [[PutRequest]] object, which can further specify and send the request
     */
   def put(relativePath : String) = PutRequest[Nothing, Nothing, None.type, Coproduct.`"*/*"`.T](
-    this,
-    backend.baseUrl,
-    relativePath,
-    Map.empty,
-    RequestBuilder(),
+    client = this,
+    url = backend.baseUrl,
+    path = relativePath,
+    params = Map.empty,
+    rb = RequestBuilder(),
     multipart = false,
-    None)
+    content = None)
 
   /**
     * Specify a HEAD request to be performed against the given resource

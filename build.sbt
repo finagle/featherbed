@@ -3,7 +3,8 @@ name := "featherbed"
 lazy val buildSettings = Seq(
   organization := "io.github.finagle",
   version := "0.1.0-SNAPSHOT",
-  scalaVersion := "2.11.8"
+  scalaVersion := "2.11.8",
+  crossScalaVersions := Seq("2.11.8", "2.10.6")
 )
 
 val finagleVersion = "6.34.0"
@@ -16,7 +17,10 @@ lazy val baseSettings = Seq(
     "com.chuusai" %% "shapeless" % shapelessVersion,
     "org.typelevel" %% "cats" % catsVersion,
     "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % "test",
-    "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+    "org.scalatest" %% "scalatest" % "2.2.6" % "test",
+    "org.typelevel" %% "macro-compat" % "1.1.1",
+    "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+    compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
   ),
   resolvers += Resolver.sonatypeRepo("snapshots")
 )
