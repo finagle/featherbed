@@ -3,7 +3,7 @@ package featherbed
 import java.nio.charset.Charset
 
 import com.twitter.finagle.{Service, SimpleFilter}
-import com.twitter.finagle.http.{Method, Request, Response, Status}
+import com.twitter.finagle.http.{Method, Request, Response}
 import com.twitter.util.{Await, Future}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterEach, FlatSpec}
@@ -34,7 +34,24 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
       assert(req.method == Method.Get)
       assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
     }
+  }
 
+  it should "get with query params" in {
+
+    val req = client
+      .get("foo/bar")
+      .withParams(Map("param" -> "value"))
+      .accept("text/plain")
+
+    Await.result(for {
+      rep <- req.send[String]()
+    } yield ())
+
+    receiver verify request { req =>
+      assert(req.uri == "/api/v1/foo/bar?param=value")
+      assert(req.method == Method.Get)
+      assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
+    }
   }
 
   it should "post" in {
@@ -42,7 +59,6 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
       .post("foo/bar")
       .withContent("Hello world", "text/plain")
       .accept("text/plain")
-
 
     Await.result(for {
       rep <- req.send[String]()
@@ -110,7 +126,7 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
       assert(req.method == Method.Put)
-      assert(req.contentType == Some(s"text/plain; charset=${Charset.defaultCharset.name}"))
+      assert(req.contentType.contains(s"text/plain; charset=${Charset.defaultCharset.name}"))
       assert(req.contentString == "Hello world")
     }
   }
@@ -129,5 +145,4 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
       """.stripMargin
     )
   }
-
 }
