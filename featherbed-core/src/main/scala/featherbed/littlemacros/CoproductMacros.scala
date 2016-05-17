@@ -1,15 +1,20 @@
 package featherbed.littlemacros
 
+import macrocompat.bundle
 import shapeless.{:+:, CNil}
 
 import scala.reflect.macros.whitebox
 
-
+@bundle
 class CoproductMacros(val c: whitebox.Context) {
   import c.universe._
 
   /**
     * Support the syntax `accept("foo/bar", "foz/baz"...)`
+    *
+    * This is done instead of using [[shapeless.SingletonProductArgs]] because the latter disrupts type inference in
+    * most IDEs (besides ensime)
+    *
     * @param types Content types
     * @return Passes through to accept[ContentTypes]
     */
