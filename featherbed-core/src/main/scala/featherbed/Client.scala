@@ -1,7 +1,9 @@
 package featherbed
 
 import java.net.URL
-import com.twitter.finagle._, http.RequestBuilder
+
+import com.twitter.finagle._
+import http.RequestBuilder
 import shapeless.Coproduct
 
 /**
@@ -33,8 +35,10 @@ class Client private[featherbed] (private[featherbed] val backend: ClientBackend
     */
   def get(relativePath : String) = GetRequest[Coproduct.`"*/*"`.T](
     this,
-    Client.hostAndPort(backend.baseUrl),
-    requestBuilder(relativePath))
+    backend.baseUrl,
+    relativePath,
+    Map.empty,
+    RequestBuilder())
 
   /**
     * Specify a POST request to be performed against the given resource
@@ -43,8 +47,10 @@ class Client private[featherbed] (private[featherbed] val backend: ClientBackend
     */
   def post(relativePath : String) = PostRequest[Nothing, Nothing, None.type, Coproduct.`"*/*"`.T](
     this,
-    Client.hostAndPort(backend.baseUrl),
-    requestBuilder(relativePath),
+    backend.baseUrl,
+    relativePath,
+    Map.empty,
+    RequestBuilder(),
     None)
 
   /**
@@ -54,8 +60,10 @@ class Client private[featherbed] (private[featherbed] val backend: ClientBackend
     */
   def put(relativePath : String) = PutRequest[Nothing, Nothing, None.type, Coproduct.`"*/*"`.T](
     this,
-    Client.hostAndPort(backend.baseUrl),
-    requestBuilder(relativePath),
+    backend.baseUrl,
+    relativePath,
+    Map.empty,
+    RequestBuilder(),
     multipart = false,
     None)
 
@@ -65,7 +73,7 @@ class Client private[featherbed] (private[featherbed] val backend: ClientBackend
     * @return A [[HeadRequest]] object, which can further specify and send the request
     */
   def head(relativePath : String) =
-    HeadRequest(this, Client.hostAndPort(backend.baseUrl), requestBuilder(relativePath))
+    HeadRequest(this, backend.baseUrl, relativePath, Map.empty, RequestBuilder())
 
   /**
     * Specify a DELETE request to be performed against the given resource
@@ -73,10 +81,7 @@ class Client private[featherbed] (private[featherbed] val backend: ClientBackend
     * @return A [[DeleteRequest]] object, which can further specify and send the request
     */
   def delete(relativePath : String) =
-    DeleteRequest[Coproduct.`"*/*"`.T](this, Client.hostAndPort(backend.baseUrl), requestBuilder(relativePath))
-
-  private def requestBuilder(relativePath: String) =
-    RequestBuilder().url(new URL(backend.baseUrl, relativePath))
+    DeleteRequest[Coproduct.`"*/*"`.T](this, backend.baseUrl, relativePath, Map.empty, RequestBuilder())
 
   protected def clientTransform(client: Http.Client): Http.Client = client
 
