@@ -1,9 +1,6 @@
 package featherbed.support
 
-import shapeless.{:+:, CNil, Coproduct, HList, Witness}
-import shapeless.ops.coproduct.ToHList
-import shapeless.ops.hlist.{LiftAll, ToList}
-
+import shapeless.{:+:, CNil, Coproduct, Witness}
 
 sealed trait AcceptHeader[Accept <: Coproduct] {
   def contentTypes: List[String]
@@ -19,8 +16,7 @@ object AcceptHeader {
   implicit def ccons[H <: String, T <: Coproduct](implicit
     witness: Witness.Aux[H],
     tailHeader: AcceptHeader[T]
-  ) : AcceptHeader[H :+: T] = new AcceptHeader[H :+: T] {
+  ): AcceptHeader[H :+: T] = new AcceptHeader[H :+: T] {
     val contentTypes = witness.value :: tailHeader.contentTypes
   }
-
 }

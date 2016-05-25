@@ -1,9 +1,8 @@
 package featherbed.littlemacros
 
-import shapeless.{:+:, CNil}
-
 import scala.reflect.macros.whitebox
 
+import shapeless.{:+:, CNil}
 
 class CoproductMacros(val c: whitebox.Context) {
   import c.universe._
@@ -13,7 +12,7 @@ class CoproductMacros(val c: whitebox.Context) {
     * @param types Content types
     * @return Passes through to accept[ContentTypes]
     */
-  def callAcceptCoproduct(types: Tree*) : Tree = {
+  def callAcceptCoproduct(types: Tree*): Tree = {
     val lhs = c.prefix.tree
     val accepts = types map {
       case Literal(const @ Constant(str: String)) => c.internal.constantType(const)
@@ -30,5 +29,4 @@ class CoproductMacros(val c: whitebox.Context) {
 
     q"$lhs.accept[$coproductType]"
   }
-
 }
