@@ -36,9 +36,9 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
   it should "get with 'addQueryParams'" in {
     val req = client
       .get("foo/bar")
-      .addQueryParams("param1" -> "value1")
-      .addQueryParams("param2" -> "value2")
-      .addQueryParams("param2" -> "value3")
+      .addQueryParams(Map("param1" -> "value1"))
+      .addQueryParams(Map("param2" -> "value2"))
+      .addQueryParams(Map("param2" -> "value3"))
       .accept("text/plain")
 
     Await.result(req.send[String]())
@@ -53,9 +53,9 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
   it should "get with 'withQueryParams'" in {
     val req = client
       .get("foo/bar")
-      .withQueryParams("param1" -> "value1")
-      .withQueryParams("param2" -> "value2")
-      .withQueryParams("param2" -> "value3")
+      .withQueryParams(Map("param1" -> "value1"))
+      .withQueryParams(Map("param2" -> "value2"))
+      .withQueryParams(Map("param2" -> "value3"))
       .accept("text/plain")
 
     Await.result(req.send[String]())

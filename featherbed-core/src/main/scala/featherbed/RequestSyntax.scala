@@ -272,16 +272,16 @@ abstract class RequestSyntax[HasUrl, HasForm, Accept <: Coproduct] (
     *
     * @param params new query params. All strings will be url-encoded inside this method.
     */
-  def withQueryParams(params: (String, String)*): Self =
-    withQueryString(paramsToString(params: _*))
+  def withQueryParams(params: Map[String,String]): Self =
+    withQueryString(paramsToString(params))
 
   /**
     * Adds query parameters to existing query string.
     *
     * @param params new query params. All strings will be url-encoded inside this method.
     */
-  def addQueryParams(params: (String, String)*): Self =
-    withQueryString(queryString.map {_ + "&"}.getOrElse("") + paramsToString(params: _*))
+  def addQueryParams(params: Map[String, String]): Self =
+    withQueryString(queryString.map {_ + "&"}.getOrElse("") + paramsToString(params))
 
   /**
     * Specify which content types are accepted, using type syntax (i.e. Coproduct.`"text/plain","text/html"`.T)
@@ -504,7 +504,7 @@ private[featherbed] case class DeleteRequest[Accept <: Coproduct] (
 }
 
 private[featherbed] object RequestSyntax {
-  def paramsToString(params: (String, String)*): String =
+  def paramsToString(params: Map[String,String]): String =
     params.map { case (k, v) => encode(k) + "=" + encode(v) }.mkString("&")
 
   def encode(s: String): String = URLEncoder.encode(s, "UTF-8")
