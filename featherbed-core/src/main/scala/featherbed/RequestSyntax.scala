@@ -1,6 +1,6 @@
 package featherbed
 
-import java.net.URL
+import java.net.{URL, URLEncoder}
 import java.nio.charset.Charset
 import scala.annotation.implicitNotFound
 import scala.language.experimental.macros
@@ -175,7 +175,7 @@ abstract class RequestSyntax[HasUrl, HasForm, Accept <: Coproduct] (
   client: Client,
   url: URL,
   path: String,
-  params: Map[String, String],
+  queryString: Option[String],
   protected[featherbed] val requestBuilder: RequestBuilder[HasUrl, HasForm]
 ) {
 
@@ -248,12 +248,40 @@ abstract class RequestSyntax[HasUrl, HasForm, Accept <: Coproduct] (
   ): ValidatedNel[Throwable, Request] = canBuild.build(this: Self)
 
   protected[featherbed] def buildURL: ValidatedNel[Throwable, URL] =
-    Validated.fromTry[URL](Try(new URL(Request.queryString(url.toString + path, params)))).toValidatedNel
+    Validated.fromTry[URL](
+      Try(new URL(url + path + queryString.map { "?" + _ }.getOrElse("")))
+    ).toValidatedNel
 
   def withHeader(name: String, value: String): Self = withBuilder(requestBuilder.addHeader(name, value))
   def withHeaders(headers: (String, String)*): Self = withBuilder(requestBuilder = headers.foldLeft(requestBuilder) {
     case (b, (k, v)) => b.addHeader(k, v)
   })
+
+  /**
+    * Replaces the whole query string with new one.
+    * Use this method only if [[withQueryParams]] can't be used.
+    *
+    * @param newQueryString new query string. Will NOT be url-encoded.
+    */
+  def withQueryString(newQueryString: String): Self
+
+  import RequestSyntax._
+
+  /**
+    * Replaces the whole query string with new query parameters.
+    *
+    * @param params new query params. All strings will be url-encoded inside this method.
+    */
+  def withQueryParams(params: (String, String)*): Self =
+    withQueryString(paramsToString(params: _*))
+
+  /**
+    * Adds query parameters to existing query string.
+    *
+    * @param params new query params. All strings will be url-encoded inside this method.
+    */
+  def addQueryParams(params: (String, String)*): Self =
+    withQueryString(queryString.map {_ + "&"}.getOrElse("") + paramsToString(params: _*))
 
   /**
     * Specify which content types are accepted, using type syntax (i.e. Coproduct.`"text/plain","text/html"`.T)
@@ -290,10 +318,10 @@ private[featherbed] case class GetRequest[Accept <: Coproduct] (
     private val client: Client,
     private val url: URL,
     private val path: String,
-    private val params: Map[String, String],
+    private val queryString: Option[String],
     private val rb: RequestBuilder[Nothing, Nothing],
     charset: Charset = Charset.defaultCharset
-) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, params, rb) {
+) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, queryString, rb) {
 
   type Self = GetRequest[Accept]
   override type SelfAccepting[A <: Coproduct] = GetRequest[A]
@@ -303,7 +331,7 @@ private[featherbed] case class GetRequest[Accept <: Coproduct] (
 
   def withCharset(newCharset: Charset): Self = copy(charset = newCharset)
 
-  def withParams(newParams: Map[String, String]): Self = copy[Accept](params = params ++ newParams)
+  def withQueryString(newQueryString: String): Self = copy(queryString = Some(newQueryString))
 
   def accept[ContentTypes <: Coproduct]: SelfAccepting[ContentTypes] =
     copy[ContentTypes]()
@@ -318,11 +346,11 @@ private[featherbed] case class PostRequest[
     private val client: Client,
     private val url: URL,
     private val path: String,
-    private val params: Map[String, String],
+    private val queryString: Option[String],
     private val rb: RequestBuilder[Nothing, Nothing],
     private[featherbed] val content: Option[Content],
     charset: Charset = Charset.defaultCharset
-) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, params, rb) {
+) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, queryString, rb) {
 
   type Self = PostRequest[Content, WithContentType, ContentProvided, Accept]
   override type SelfAccepting[A <: Coproduct] = PostRequest[Content, WithContentType, ContentProvided, A]
@@ -330,10 +358,12 @@ private[featherbed] case class PostRequest[
   override protected def withBuilder(newRequestBuilder: RequestBuilder[Nothing, Nothing]): Self =
     copy(rb = newRequestBuilder)
 
+  def withQueryString(newQueryString: String): Self = copy(queryString = Some(newQueryString))
+
   def withCharset(newCharset: Charset): Self = copy(charset = newCharset)
 
   def withForm(fields: (String, String)*)(implicit ev: Content =:= Nothing): FormPostRequest[Accept] =
-    new FormPostRequest(client, url, path, params, requestBuilder.addFormElement(fields: _*))
+    new FormPostRequest(client, url, path, queryString, requestBuilder.addFormElement(fields: _*))
 
   def withFormFile(
     name: String,
@@ -344,7 +374,7 @@ private[featherbed] case class PostRequest[
     client,
     url,
     path,
-    params,
+    queryString,
     requestBuilder.add(FileElement(name, content, contentType, filename))
   )
 
@@ -365,17 +395,19 @@ private[featherbed] case class FormPostRequest[Accept <: Coproduct] (
     private val client: Client,
     private val url: URL,
     private val path: String,
-    private val params: Map[String, String],
+    private val queryString: Option[String],
     private val rb: RequestBuilder[Nothing, Yes],
     private[featherbed] val multipart: Boolean = false,
     charset: Charset = Charset.defaultCharset
-) extends RequestSyntax[Nothing, Yes, Accept](client, url, path, params, rb) {
+) extends RequestSyntax[Nothing, Yes, Accept](client, url, path, queryString, rb) {
 
   type Self = FormPostRequest[Accept]
   override type SelfAccepting[A <: Coproduct] = FormPostRequest[A]
 
   override protected def withBuilder(newRequestBuilder: RequestBuilder[Nothing, Yes]): Self =
     copy(rb = newRequestBuilder)
+
+  def withQueryString(newQueryString: String): Self = copy(queryString = Some(newQueryString))
 
   def withCharset(newCharset: Charset): Self = copy(charset = newCharset)
 
@@ -397,18 +429,20 @@ private[featherbed] case class PutRequest[
     private val client: Client,
     private val url: URL,
     private val path: String,
-    private val params: Map[String, String],
+    private val queryString: Option[String],
     private val rb: RequestBuilder[Nothing, Nothing],
     private[featherbed] val multipart: Boolean = false,
     private[featherbed] val content: ContentProvided,
     charset: Charset = Charset.defaultCharset
-) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, params, rb) {
+) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, queryString, rb) {
 
   type Self = PutRequest[Content, WithContentType, ContentProvided, Accept]
   override type SelfAccepting[A <: Coproduct] = PutRequest[Content, WithContentType, ContentProvided, A]
 
   protected def withBuilder(newRequestBuilder: RequestBuilder[Nothing, Nothing]): Self =
     copy(rb = newRequestBuilder)
+
+  def withQueryString(newQueryString: String): Self = copy(queryString = Some(newQueryString))
 
   def withCharset(newCharset: Charset): Self = copy(charset = newCharset)
 
@@ -428,16 +462,18 @@ private[featherbed] case class HeadRequest (
   private val client: Client,
   private val url: URL,
   private val path: String,
-  private val params: Map[String, String],
+  private val queryString: Option[String],
   private val rb: RequestBuilder[Nothing, Nothing],
   charset: Charset = Charset.defaultCharset
-) extends RequestSyntax[Nothing, Nothing, Coproduct.`"*/*"`.T](client, url, path, params, rb) {
+) extends RequestSyntax[Nothing, Nothing, Coproduct.`"*/*"`.T](client, url, path, queryString, rb) {
 
   type Self = HeadRequest
   override type SelfAccepting[A] = Self
 
   // Doesn't make sense to Accept in a HEAD request
   def accept[ContentTypes <: Coproduct]: SelfAccepting[ContentTypes] = this
+
+  def withQueryString(newQueryString: String): Self = copy(queryString = Some(newQueryString))
 
   protected def withBuilder(newRequestBuilder: RequestBuilder[Nothing, Nothing]): HeadRequest =
     copy(rb = newRequestBuilder)
@@ -449,10 +485,10 @@ private[featherbed] case class DeleteRequest[Accept <: Coproduct] (
   private val client: Client,
   private val url: URL,
   private val path: String,
-  private val params: Map[String, String],
+  private val queryString: Option[String],
   private val rb: RequestBuilder[Nothing, Nothing],
   charset: Charset = Charset.defaultCharset
-) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, params, rb) {
+) extends RequestSyntax[Nothing, Nothing, Accept](client, url, path, queryString, rb) {
 
   type Self = DeleteRequest[Accept]
   type SelfAccepting[A <: Coproduct] = DeleteRequest[A]
@@ -460,7 +496,16 @@ private[featherbed] case class DeleteRequest[Accept <: Coproduct] (
   def withBuilder(newRequestBuilder: RequestBuilder[Nothing, Nothing]): Self =
     copy(rb = newRequestBuilder)
 
+  def withQueryString(newQueryString: String): Self = copy(queryString = Some(newQueryString))
+
   def withCharset(newCharset: Charset): Self = copy(charset = newCharset)
 
   def accept[ContentTypes <: Coproduct]: SelfAccepting[ContentTypes] = copy[ContentTypes]()
+}
+
+private[featherbed] object RequestSyntax {
+  def paramsToString(params: (String, String)*): String =
+    params.map { case (k, v) => encode(k) + "=" + encode(v) }.mkString("&")
+
+  def encode(s: String): String = URLEncoder.encode(s, "UTF-8")
 }

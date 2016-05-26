@@ -37,7 +37,7 @@ private[featherbed] class Client (private[featherbed] val backend: ClientBackend
       this,
       backend.baseUrl,
       relativePath,
-      Map.empty,
+      None,
       RequestBuilder()
     )
 
@@ -51,7 +51,7 @@ private[featherbed] class Client (private[featherbed] val backend: ClientBackend
       this,
       backend.baseUrl,
       relativePath,
-      Map.empty,
+      None,
       RequestBuilder(),
       None
     )
@@ -66,7 +66,7 @@ private[featherbed] class Client (private[featherbed] val backend: ClientBackend
       this,
       backend.baseUrl,
       relativePath,
-      Map.empty,
+      None,
       RequestBuilder(),
       multipart = false,
       None
@@ -78,7 +78,7 @@ private[featherbed] class Client (private[featherbed] val backend: ClientBackend
     * @return A [[HeadRequest]] object, which can further specify and send the request
     */
   def head(relativePath: String): HeadRequest =
-    HeadRequest(this, backend.baseUrl, relativePath, Map.empty, RequestBuilder())
+    HeadRequest(this, backend.baseUrl, relativePath, None, RequestBuilder())
 
   /**
     * Specify a DELETE request to be performed against the given resource
@@ -86,7 +86,7 @@ private[featherbed] class Client (private[featherbed] val backend: ClientBackend
     * @return A [[DeleteRequest]] object, which can further specify and send the request
     */
   def delete(relativePath: String): DeleteRequest[Coproduct.`"*/*"`.T] =
-    DeleteRequest[Coproduct.`"*/*"`.T](this, backend.baseUrl, relativePath, Map.empty, RequestBuilder())
+    DeleteRequest[Coproduct.`"*/*"`.T](this, backend.baseUrl, relativePath, None, RequestBuilder())
 
   protected def clientTransform(client: Http.Client): Http.Client = client
 
