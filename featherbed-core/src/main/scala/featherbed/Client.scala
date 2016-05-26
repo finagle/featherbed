@@ -9,7 +9,7 @@ import shapeless.Coproduct
 /**
   * A REST client with a given base URL.
   */
-private[featherbed] class Client (private[featherbed] val backend: ClientBackend) {
+class Client private[featherbed] (private[featherbed] val backend: ClientBackend) {
   /**
     * Construct a [[Client]] with the given base URL. The URL will be used as the base for resolving resources, so
     * it usually needs to include the trailing slash "/":
