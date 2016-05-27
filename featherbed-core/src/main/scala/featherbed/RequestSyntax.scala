@@ -299,7 +299,7 @@ abstract class RequestSyntax[HasUrl, HasForm, Accept <: Coproduct] (
     * @param params new query params. All strings will be url-encoded inside this method.
     */
   def addQueryParams(params: List[(String, String)]): Self =
-    withQueryParams(params:_*)
+    withQueryParams(params: _*)
 
 
   /**
