@@ -50,6 +50,26 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
     }
   }
 
+  it should "get with 'addQueryParams' with a List" in {
+    val params = ("param1" -> "value1") ::
+      ("param2" -> "value2") ::
+      ("param2" -> "value3") ::
+      Nil
+
+    val req = client
+      .get("foo/bar")
+      .addQueryParams(params)
+      .accept("text/plain")
+
+    Await.result(req.send[String]())
+
+    receiver verify request { req =>
+      assert(req.uri == s"/api/v1/foo/bar?param1=value1&param2=value2&param2=value3")
+      assert(req.method == Method.Get)
+      assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
+    }
+  }
+
   it should "get with 'withQueryParams'" in {
     val req = client
       .get("foo/bar")
@@ -62,6 +82,25 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
 
     receiver verify request { req =>
       assert(req.uri == s"/api/v1/foo/bar?param2=value3")
+      assert(req.method == Method.Get)
+      assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
+    }
+  }
+
+  it should "get with 'withQueryParams' with a List" in {
+    val params = ("param1" -> "value1") :: ("param2" -> "value2") ::
+      ("param2" -> "value3") ::
+      Nil
+
+    val req = client
+      .get("foo/bar")
+      .withQueryParams(params)
+      .accept("text/plain")
+
+    Await.result(req.send[String]())
+
+    receiver verify request { req =>
+      assert(req.uri == s"/api/v1/foo/bar?param1=value1&param2=value2&param2=value3")
       assert(req.method == Method.Get)
       assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
     }

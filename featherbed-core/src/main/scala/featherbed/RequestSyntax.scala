@@ -276,12 +276,31 @@ abstract class RequestSyntax[HasUrl, HasForm, Accept <: Coproduct] (
     withQueryString(paramsToString(params: _*))
 
   /**
+    * Replaces the whole query string with new query parameters.
+    * Convenience method accepts List instead of varargs.
+    *
+    * @param params new query params. All strings will be url-encoded inside this method.
+    */
+  def withQueryParams(params: List[(String, String)]): Self =
+    withQueryParams(params: _*)
+
+  /**
     * Adds query parameters to existing query string.
     *
     * @param params new query params. All strings will be url-encoded inside this method.
     */
   def addQueryParams(params: (String, String)*): Self =
     withQueryString(queryString.map {_ + "&"}.getOrElse("") + paramsToString(params: _*))
+
+  /**
+    * Adds query parameters to existing query string.
+    * Convenience method accepts List instead of varargs.
+    *
+    * @param params new query params. All strings will be url-encoded inside this method.
+    */
+  def addQueryParams(params: List[(String, String)]): Self =
+    withQueryParams(params: _*)
+
 
   /**
     * Specify which content types are accepted, using type syntax (i.e. Coproduct.`"text/plain","text/html"`.T)
