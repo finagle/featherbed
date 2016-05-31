@@ -7,7 +7,7 @@ import featherbed.Client
 import featherbed.content
 import featherbed.support.AcceptHeader
 
-import cats.data._, Xor._
+import cats.data._, Xor._, Validated._
 import cats.std.list._
 import cats.syntax.traverse._
 import com.twitter.finagle.http.{FormElement, Request, RequestBuilder}
