@@ -5,8 +5,10 @@ import java.nio.charset.Charset
 import com.twitter.finagle.{Service, SimpleFilter}
 import com.twitter.finagle.http.{Method, Request, Response}
 import com.twitter.util.{Await, Future}
+import featherbed.support.DecodeAll
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterEach, FlatSpec}
+import shapeless.{CNil, Coproduct, Witness}
 
 class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAndAfterEach {
 
@@ -40,7 +42,7 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
 
     val req = client
       .get("foo/bar")
-      .withParams(Map("param" -> "value"))
+      .withQueryParams("param" -> "value")
       .accept("text/plain")
 
     Await.result(for {
@@ -76,7 +78,7 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
   it should "post a form" in {
     val req = client
       .post("foo/bar")
-      .withForm("foo" -> "bar", "bar" -> "baz")
+      .withParams("foo" -> "bar", "bar" -> "baz")
       .accept("text/plain")
 
     Await.result(req.send[String]())

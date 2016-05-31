@@ -8,7 +8,7 @@ lazy val buildSettings = Seq(
 
 val finagleVersion = "6.34.0"
 val shapelessVersion = "2.3.0"
-val catsVersion = "0.4.1"
+val catsVersion = "0.6.0"
 
 lazy val baseSettings = Seq(
   libraryDependencies ++= Seq(

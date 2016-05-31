@@ -7,9 +7,9 @@ import org.scalamock.scalatest.MockFactory
 
 package object featherbed {
   private[featherbed] class MockClient (
-    backend: ClientBackend,
+    baseUrl: URL,
     filter: Filter[Request, Response, Request, Response]
-  ) extends Client(backend) {
+  ) extends Client(baseUrl) {
     override def clientTransform(c: Http.Client) = c.filtered(filter)
   }
 
@@ -28,6 +28,6 @@ package object featherbed {
     def request(f: Request => Unit): TransportRequestMatcher = new TransportRequestMatcher(f)
 
     def mockClient(url: String, filter: Filter[Request, Response, Request, Response]): Client =
-      new Client(ClientBackend(Http.Client().filtered(filter), new URL(url)))
+      new MockClient(new URL(url), filter)
   }
 }

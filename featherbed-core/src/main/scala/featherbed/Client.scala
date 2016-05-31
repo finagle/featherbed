@@ -1,31 +1,20 @@
 package featherbed
 
 import java.net.URL
+import java.nio.charset.{Charset, StandardCharsets}
 
 import com.twitter.finagle._
+import com.twitter.finagle.builder.ClientBuilder
 import http.RequestBuilder
 import shapeless.Coproduct
 
 /**
   * A REST client with a given base URL.
   */
-private[featherbed] class Client (private[featherbed] val backend: ClientBackend) {
-  /**
-    * Construct a [[Client]] with the given base URL. The URL will be used as the base for resolving resources, so
-    * it usually needs to include the trailing slash "/":
-    *
-    * When "foo/bar" is resolved against "http://example.com/api/v1", the result is "http://example.com/api/foo/bar",
-    * because "v1" is the final path segment; this usually isn't desired.  This can't be solved by resolving "/foo/bar",
-    * because that is a host-relative URI, and will result in "http://example.com/foo/bar" (removing the entire path of
-    * the base URL).
-    *
-    * When "foo/bar" is resolved against "http://example.com/api/v1/", on the other hand, the result is the desired
-    * location of "http://example.com/api/v1/foo/bar".
-    *
-    * @param baseUrl The base URL that this client will resolve resources against
-    */
-  def this(baseUrl: URL) = this(ClientBackend(
-    Client.forUrl(baseUrl), baseUrl))
+class Client(
+  baseUrl: URL,
+  charset: Charset = StandardCharsets.UTF_8
+) extends request.RequestTypes with request.RequestBuilding {
 
   /**
     * Specify a GET request to be performed against the given resource
@@ -34,11 +23,9 @@ private[featherbed] class Client (private[featherbed] val backend: ClientBackend
     */
   def get(relativePath: String): GetRequest[Coproduct.`"*/*"`.T] =
     GetRequest[Coproduct.`"*/*"`.T](
-      this,
-      backend.baseUrl,
-      relativePath,
-      Map.empty,
-      RequestBuilder()
+      baseUrl.toURI.resolve(relativePath).toURL,
+      List.empty,
+      charset
     )
 
   /**
@@ -46,14 +33,12 @@ private[featherbed] class Client (private[featherbed] val backend: ClientBackend
     * @param relativePath The path to the resource, relative to the baseUrl
     * @return A [[PostRequest]] object, which can further specify and send the request
     */
-  def post(relativePath: String): PostRequest[Nothing, Nothing, None.type, Coproduct.`"*/*"`.T] =
-    PostRequest[Nothing, Nothing, None.type, Coproduct.`"*/*"`.T](
-      this,
-      backend.baseUrl,
-      relativePath,
-      Map.empty,
-      RequestBuilder(),
-      None
+  def post(relativePath: String): PostRequest[None.type, Nothing, Coproduct.`"*/*"`.T] =
+    PostRequest[None.type, Nothing, Coproduct.`"*/*"`.T](
+      baseUrl.toURI.resolve(relativePath).toURL,
+      None,
+      List.empty,
+      charset
     )
 
   /**
@@ -61,15 +46,12 @@ private[featherbed] class Client (private[featherbed] val backend: ClientBackend
     * @param relativePath The path to the resource, relative to the baseUrl
     * @return A [[PutRequest]] object, which can further specify and send the request
     */
-  def put(relativePath: String): PutRequest[Nothing, Nothing, None.type, Coproduct.`"*/*"`.T] =
-    PutRequest[Nothing, Nothing, None.type, Coproduct.`"*/*"`.T](
-      this,
-      backend.baseUrl,
-      relativePath,
-      Map.empty,
-      RequestBuilder(),
-      multipart = false,
-      None
+  def put(relativePath: String): PutRequest[None.type, Nothing, Coproduct.`"*/*"`.T] =
+    PutRequest[None.type, Nothing, Coproduct.`"*/*"`.T](
+      baseUrl.toURI.resolve(relativePath).toURL,
+      None,
+      List.empty,
+      charset
     )
 
   /**
@@ -78,7 +60,7 @@ private[featherbed] class Client (private[featherbed] val backend: ClientBackend
     * @return A [[HeadRequest]] object, which can further specify and send the request
     */
   def head(relativePath: String): HeadRequest =
-    HeadRequest(this, backend.baseUrl, relativePath, Map.empty, RequestBuilder())
+    HeadRequest(baseUrl.toURI.resolve(relativePath).toURL, List.empty)
 
   /**
     * Specify a DELETE request to be performed against the given resource
@@ -86,11 +68,13 @@ private[featherbed] class Client (private[featherbed] val backend: ClientBackend
     * @return A [[DeleteRequest]] object, which can further specify and send the request
     */
   def delete(relativePath: String): DeleteRequest[Coproduct.`"*/*"`.T] =
-    DeleteRequest[Coproduct.`"*/*"`.T](this, backend.baseUrl, relativePath, Map.empty, RequestBuilder())
+    DeleteRequest[Coproduct.`"*/*"`.T](baseUrl.toURI.resolve(relativePath).toURL, List.empty)
 
   protected def clientTransform(client: Http.Client): Http.Client = client
 
-  val httpClient = clientTransform(backend.client).newClient(Client.hostAndPort(backend.baseUrl))
+  protected val client = clientTransform(Client.forUrl(baseUrl))
+
+  protected[featherbed] def httpClient = client.newClient(Client.hostAndPort(baseUrl))
 }
 
 object Client {
@@ -104,9 +88,6 @@ object Client {
     case -1 => s"${url.getHost}:${url.getDefaultPort}"
     case port => s"${url.getHost}:$port"
   }
-}
 
-private[featherbed] case class ClientBackend(
-  client: Http.Client,
-  baseUrl: URL
-)
+  def apply(baseUrl: URL): Client = new Client(baseUrl)
+}
