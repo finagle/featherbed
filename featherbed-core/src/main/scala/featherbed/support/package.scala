@@ -1,10 +1,10 @@
 package featherbed
 
-import cats.data.Validated.Valid
-import com.twitter.finagle.http.Response
-
 import scala.annotation.implicitNotFound
 import scala.language.higherKinds
+
+import cats.data.Validated.Valid
+import com.twitter.finagle.http.Response
 import shapeless._
 
 package object support {

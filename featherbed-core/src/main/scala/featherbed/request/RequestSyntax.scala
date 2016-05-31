@@ -4,20 +4,17 @@ package request
 import java.io.File
 import java.net.{URL, URLEncoder}
 import java.nio.charset.{Charset, StandardCharsets}
+import scala.language.experimental.macros
 
-import cats.data.{NonEmptyList, _}
-import cats.data.Xor._
+import featherbed.content.Encoder
+import featherbed.littlemacros.CoproductMacros
+import featherbed.support.{ContentTypeSupport, DecodeAll, RuntimeContentType}
+
+import cats.data._, Xor._, Validated._
 import cats.std.list._
-import cats.data.Validated.{Invalid, Valid}
-import com.twitter.finagle.http.RequestConfig.Yes
 import com.twitter.finagle.http._
 import com.twitter.util.Future
-import featherbed.content.Encoder
-import featherbed.support.{ContentTypeSupport, DecodeAll, RuntimeContentType}
 import shapeless.{CNil, Coproduct, Witness}
-
-import scala.language.experimental.macros
-import littlemacros.CoproductMacros
 
 
 /**
