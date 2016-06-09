@@ -77,8 +77,9 @@
     </check>
     <check level="error" enabled="true" class="org.scalastyle.scalariform.ImportOrderChecker">
         <parameters>
-            <parameter name="groups">stdlib,all</parameter>
+            <parameter name="groups">stdlib,featherbed,all</parameter>
             <parameter name="group.stdlib">(scala\.|java\.).+</parameter>
+            <parameter name="group.featherbed">featherbed\..+</parameter>
             <parameter name="group.all">.+</parameter>
         </parameters>
     </check>

@@ -3,6 +3,8 @@ package featherbed
 import scala.annotation.implicitNotFound
 import scala.language.higherKinds
 
+import cats.data.Validated.Valid
+import com.twitter.finagle.http.Response
 import shapeless._
 
 package object support {
@@ -17,8 +19,10 @@ or you may be missing Decoder instances for some content types.
   }
 
   object DecodeAll {
-    implicit def cnil[A]: DecodeAll[A, CNil] = new DecodeAll[A, CNil] {
-      val instances = Nil
+    implicit def one[H, A](implicit
+      headInstance: content.Decoder.Aux[H, A]
+    ): DecodeAll[A, H :+: CNil] = new DecodeAll[A, H :+: CNil] {
+      val instances = headInstance :: Nil
     }
 
     implicit def ccons[H, A, T <: Coproduct](implicit
@@ -26,6 +30,14 @@ or you may be missing Decoder instances for some content types.
       tailInstances: DecodeAll[A, T]): DecodeAll[A, H :+: T] = new DecodeAll[A, H :+: T] {
 
       val instances = headInstance :: tailInstances.instances
+    }
+
+    implicit val decodeResponse = new DecodeAll[Response, Nothing] {
+      val instances = new content.Decoder[Response] {
+        type Out = Response
+        val contentType = "Nothing"
+        def apply(response: Response) = Valid(response)
+      } :: Nil
     }
   }
 }

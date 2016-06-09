@@ -5,8 +5,10 @@ import java.nio.charset.Charset
 import com.twitter.finagle.{Service, SimpleFilter}
 import com.twitter.finagle.http.{Method, Request, Response}
 import com.twitter.util.{Await, Future}
+import featherbed.support.DecodeAll
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterEach, FlatSpec}
+import shapeless.{CNil, Coproduct, Witness}
 
 class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAndAfterEach {
 
@@ -22,9 +24,12 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
   val client = mockClient("http://example.com/api/v1/", InterceptRequest)
 
   "Client" should "get" in {
+
     val req = client.get("foo/bar").accept("text/plain")
 
-    Await.result(req.send[String]())
+    Await.result(for {
+      rep <- req.send[String]()
+    } yield ())
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
@@ -33,50 +38,19 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
     }
   }
 
-  it should "get with 'addQueryParams'" in {
+  it should "get with query params" in {
+
     val req = client
       .get("foo/bar")
-      .addQueryParams("param1" -> "value1")
-      .addQueryParams("param2" -> "value2")
-      .addQueryParams("param2" -> "value3")
+      .withQueryParams("param" -> "value")
       .accept("text/plain")
 
-    Await.result(req.send[String]())
+    Await.result(for {
+      rep <- req.send[String]()
+    } yield ())
 
     receiver verify request { req =>
-      assert(req.uri == s"/api/v1/foo/bar?param1=value1&param2=value2&param2=value3")
-      assert(req.method == Method.Get)
-      assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
-    }
-  }
-
-  it should "get with 'withQueryParams'" in {
-    val req = client
-      .get("foo/bar")
-      .withQueryParams("param1" -> "value1")
-      .withQueryParams("param2" -> "value2")
-      .withQueryParams("param2" -> "value3")
-      .accept("text/plain")
-
-    Await.result(req.send[String]())
-
-    receiver verify request { req =>
-      assert(req.uri == s"/api/v1/foo/bar?param2=value3")
-      assert(req.method == Method.Get)
-      assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
-    }
-  }
-
-  it should "get with 'withQueryString'" in {
-    val req = client
-      .get("foo/bar")
-      .withQueryString("a:b:c+d*h")
-      .accept("text/plain")
-
-    Await.result(req.send[String]())
-
-    receiver verify request { req =>
-      assert(req.uri == s"/api/v1/foo/bar?a:b:c+d*h")
+      assert(req.uri == "/api/v1/foo/bar?param=value")
       assert(req.method == Method.Get)
       assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
     }
@@ -88,7 +62,9 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
       .withContent("Hello world", "text/plain")
       .accept("text/plain")
 
-    Await.result(req.send[String]())
+    Await.result(for {
+      rep <- req.send[String]()
+    } yield ())
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
@@ -102,7 +78,7 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
   it should "post a form" in {
     val req = client
       .post("foo/bar")
-      .withForm("foo" -> "bar", "bar" -> "baz")
+      .withParams("foo" -> "bar", "bar" -> "baz")
       .accept("text/plain")
 
     Await.result(req.send[String]())
