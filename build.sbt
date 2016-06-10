@@ -2,7 +2,7 @@ name := "featherbed"
 
 lazy val buildSettings = Seq(
   organization := "io.github.finagle",
-  version := "0.1.0-SNAPSHOT",
+  version := "0.2.0-SNAPSHOT",
   scalaVersion := "2.11.8"
 )
 
@@ -68,6 +68,10 @@ lazy val `featherbed-core` = project
 lazy val `featherbed-circe` = project
   .settings(allSettings)
   .dependsOn(`featherbed-core`)
+
+lazy val `docs` = project
+  .settings(allSettings)
+  .dependsOn(`featherbed-core`, `featherbed-circe`)
 
 lazy val featherbed = project
   .in(file("."))

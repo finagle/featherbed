@@ -37,7 +37,7 @@ Now you can make some requests:
 import com.twitter.util.Await
 
 Await.result {
-  val request = client.get("test/resource")
+  val request = client.get("test/resource").send[Response]()
   request map {
     response => response.contentString
   }
@@ -62,6 +62,7 @@ Await.result {
       "bar" -> "baz")
     .withCharset(UTF_8)
     .withHeaders("X-Foo" -> "scooby-doo")
+    .send[Response]()
     .map {
       response => response.contentString
     }
@@ -78,15 +79,18 @@ Await.result {
 import com.twitter.io.Buf
 
 Await.result {
-  client.put("put/request").withContent(Buf.Utf8("Hello world!"), "text/plain") map {
-    response => response.statusCode
-  }
+  client.put("put/request")
+    .withContent(Buf.Utf8("Hello world!"), "text/plain")
+    .send[Response]()
+    .map {
+      response => response.statusCode
+    }
 }
 ```
 
 ```tut:book
 Await.result {
-  client.delete("delete/request") map {
+  client.delete("delete/request").send[Response]() map {
     response => response.statusCode
   }
 }
