@@ -74,7 +74,7 @@ class Client(
 
   protected val client = clientTransform(Client.forUrl(baseUrl))
 
-  protected[featherbed] def httpClient = client.newClient(Client.hostAndPort(baseUrl))
+  protected[featherbed] def httpClient = client.newService(Client.hostAndPort(baseUrl))
 }
 
 object Client {

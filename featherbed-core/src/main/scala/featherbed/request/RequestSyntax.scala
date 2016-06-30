@@ -79,10 +79,7 @@ trait RequestTypes { self: Client =>
       decodeAll: DecodeAll[K, Accept]
     ): Future[Validated[InvalidResponse, K]] =
       buildRequest match {
-        case Valid(req) => for {
-          conn <- httpClient()
-          rep <- conn(req)
-        } yield {
+        case Valid(req) => httpClient(req).map { rep =>
           rep.contentType flatMap ContentTypeSupport.contentTypePieces match {
             case None => Invalid(InvalidResponse(rep, "Content-Type header is not present"))
             case Some(RuntimeContentType(mediaType, _)) =>
