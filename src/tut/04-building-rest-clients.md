@@ -34,12 +34,11 @@ And we can define a class for our API client:
 class JSONPlaceholderAPI(baseUrl: URL) {
 
   private val client = new featherbed.Client(baseUrl)
-  type JSON = Coproduct.`"application/json"`.T
 
   object posts {
 
-    private val listRequest = client.get("posts").accept[JSON]
-    private val getRequest = (id: Int) => client.get(s"posts/$id").accept[JSON]
+    private val listRequest = client.get("posts").accept("application/json")
+    private val getRequest = (id: Int) => client.get(s"posts/$id").accept("application/json")
 
     def list() = listRequest.send[Seq[Post]]()
     def get(id: Int) = getRequest(id).send[Post]()
@@ -47,8 +46,8 @@ class JSONPlaceholderAPI(baseUrl: URL) {
   }
 
   object comments {
-    private val listRequest = client.get("comments").accept[JSON]
-    private val getRequest = (id: Int) => client.get(s"comments/$id").accept[JSON]
+    private val listRequest = client.get("comments").accept("application/json")
+    private val getRequest = (id: Int) => client.get(s"comments/$id").accept("application/json")
 
     def list() = listRequest.send[Seq[Comment]]()
     def get(id: Int) = getRequest(id).send[Comment]()

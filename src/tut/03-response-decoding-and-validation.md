@@ -7,7 +7,7 @@ layout: default
 
 In the previous section, we looked at how we can import `Encoder` instances to make it so we
 can treat case classes as HTTP request content.  We've also seen how a request specification
-can be `map`ped or `flatMap`ped over in order to send the request and create a `Future` representing
+can be sent using `send[Response]` in order to send the request and create a `Future` representing
 the response.
 
 Once you have a `Future[Response]`, what then?  Of course, the `Response` will be more useful if

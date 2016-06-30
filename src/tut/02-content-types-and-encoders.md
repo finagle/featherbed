@@ -49,7 +49,7 @@ import featherbed.circe._
 case class Foo(someText : String, someInt : Int)
 val req = client.post("foo/bar").withContent(Foo("Hello world!", 42), "application/json")
 val result = Await.result {
-   req map {
+   req.send[Response]() map {
     response => response.contentString
   }
 }
@@ -62,14 +62,14 @@ type's companion object.  See the Circe documentation for more details about JSO
 ### A Note About Evaluation
 
 You may have noticed that above we created a value called `req`, which held the result of specifying the request
-type and its parameters.  We later `map`ped over that value to specify a transformation of the response.
+type and its parameters.  We later called `send[Response]` on that value and `map`ped over the result to specify a
+transformation of the response.
 
-It's important to note that the request itself **is not performed** until the call to `map` or `flatMap`. Until
-that call is made, you will have an instance of some kind of request, but you will not have a `Future` representing
-the response.  That is, the request itself is *lazy*.  The reason this is important to note is that `req` itself can
-actually be used to make the same request again.  If another call is made to `req.map` or `req.flatMap`, a new
-request of the same parameters will be initiated and a new `Future` will be returned.  This can be a useful and
-powerful thing, but it can also bite you if you're unaware.
+It's important to note that the request itself **is not performed** until the call to `send`. Until that call is made,
+you will have an instance of some kind of request, but you will not have a `Future` representing the response.  That is,
+the request itself is *lazy*.  The reason this is important to note is that `req` itself can actually be used to make
+the same request again.  If another call is made to `send`, a new request of the same parameters will be initiated and a
+new `Future` will be returned.  This can be a useful and npowerful thing, but it can also bite you if you're unaware.
 
 For more information about lazy tasks, take a look at scalaz's `Task` or cats's `Eval`.  Again, this is important to
 note, and is different than what people are used to with Finagle's `Future` (which is not lazy).
