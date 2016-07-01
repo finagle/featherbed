@@ -13,6 +13,7 @@ import featherbed.support.{ContentTypeSupport, DecodeAll, RuntimeContentType}
 import cats.data._, Xor._, Validated._
 import cats.std.list._
 import com.twitter.finagle.http._
+import com.twitter.finagle.http.Status._
 import com.twitter.util.Future
 import shapeless.{CNil, Coproduct, Witness}
 
@@ -26,7 +27,8 @@ import shapeless.{CNil, Coproduct, Witness}
   * @param response The original [[Response]], so it can be further processed if desired
   * @param reason A [[String]] describing why the response was invalid
   */
-case class InvalidResponse(response: Response, reason: String)
+case class InvalidResponse(response: Response, reason: String) extends Throwable
+case class ErrorResponse(request: Request, response: Response) extends Throwable
 
 trait RequestTypes { self: Client =>
 
@@ -68,6 +70,77 @@ trait RequestTypes { self: Client =>
       canBuild: CanBuildRequest[Self]
     ): ValidatedNel[Throwable, Request] = canBuild.build(this: Self)
 
+    private def cloneRequest(in: Request) = {
+      val out = Request()
+      out.uri = in.uri
+      out.content = in.content
+      in.headerMap.foreach {
+        case (k,v) => out.headerMap.put(k,v)
+      }
+      out
+    }
+
+    private def handleRequest(request: Request, numRedirects: Int = 0): Future[Response] = httpClient(request) flatMap {
+      rep => rep.status match {
+        case Continue =>
+          Future.exception(InvalidResponse(
+            rep,
+            "Received unexpected 100/Continue, but request body was already sent."
+          ))
+        case SwitchingProtocols =>
+          Future.exception(InvalidResponse(
+            rep,
+            "Received unexpected 101/Switching Protocols, but no switch was requested."
+          ))
+        case s if s.code >= 200 && s.code < 300 =>
+          Future(rep)
+        case MultipleChoices =>
+          Future.exception(InvalidResponse(rep, "300/Multiple Choices is not yet supported in featherbed."))
+        case MovedPermanently | Found | SeeOther | TemporaryRedirect =>
+          val attempt = for {
+            tooMany <- if (numRedirects > 5)
+                Xor.left("Too many redirects; giving up")
+              else
+                Xor.right(())
+            location <- Xor.fromOption(
+              rep.headerMap.get("Location"),
+              "Redirect required, but location header not present")
+            newUrl <- Xor.catchNonFatal(url.toURI.resolve(location))
+              .leftMap(_ => s"Could not resolve Location $location")
+            canHandle <- if (newUrl.getHost != url.getHost)
+                Xor.left("Location points to another host; this isn't supported by featherbed")
+              else
+                Xor.right(())
+          } yield {
+            val newReq = cloneRequest(request)
+            newReq.uri = List(Option(newUrl.getPath), Option(newUrl.getQuery).map("?" + _)).flatten.mkString
+            handleRequest(newReq, numRedirects + 1)
+          }
+          attempt.fold(
+            err => Future.exception(InvalidResponse(rep, err)),
+            identity
+          )
+        case other => Future.exception(ErrorResponse(request, rep))
+      }
+    }
+
+
+    protected def decodeResponse[T](rep: Response)(implicit decodeAll: DecodeAll[T, Accept]) =
+      rep.contentType flatMap ContentTypeSupport.contentTypePieces match {
+        case None => Future.exception(InvalidResponse(rep, "Content-Type header is not present"))
+        case Some(RuntimeContentType(mediaType, _)) => decodeAll.instances.find(_.contentType == mediaType) match {
+          case Some(decoder) =>
+            decoder(rep) match {
+              case Valid(decoded) =>
+                Future(decoded)
+              case Invalid(errs) =>
+                Future.exception(InvalidResponse(rep, errs.unwrap.map(_.getMessage).mkString("; ")))
+            }
+          case None =>
+            Future.exception(InvalidResponse(rep, s"No decoder was found for $mediaType"))
+        }
+      }
+
     /**
       * Send the request, decoding the response as [[K]]
       *
@@ -77,22 +150,41 @@ trait RequestTypes { self: Client =>
     protected def sendRequest[K](implicit
       canBuild: CanBuildRequest[Self],
       decodeAll: DecodeAll[K, Accept]
-    ): Future[Validated[InvalidResponse, K]] =
+    ): Future[K] =
       buildRequest match {
-        case Valid(req) => httpClient(req).map { rep =>
+        case Valid(req) => handleRequest(req).flatMap { rep =>
           rep.contentType flatMap ContentTypeSupport.contentTypePieces match {
-            case None => Invalid(InvalidResponse(rep, "Content-Type header is not present"))
+            case None => Future.exception(InvalidResponse(rep, "Content-Type header is not present"))
             case Some(RuntimeContentType(mediaType, _)) =>
               decodeAll.instances.find(_.contentType == mediaType) match {
                 case Some(decoder) =>
-                  decoder(rep).leftMap(errs => InvalidResponse(rep, errs.unwrap.map(_.getMessage).mkString("; ")))
+                  decoder(rep)
+                    .leftMap(errs => InvalidResponse(rep, errs.unwrap.map(_.getMessage).mkString("; ")))
+                    .fold(
+                      Future.exception(_),
+                      Future(_)
+                    )
                 case None =>
-                  Invalid(InvalidResponse(rep, s"No decoder was found for $mediaType"))
+                  Future.exception(InvalidResponse(rep, s"No decoder was found for $mediaType"))
               }
           }
         }
         case Invalid(errs) => Future.exception(RequestBuildingError(errs))
       }
+
+    protected def sendRequest[Error, Success](implicit
+      canBuild: CanBuildRequest[Self],
+      decodeAllSuccess: DecodeAll[Success, Accept],
+      decodeAllError: DecodeAll[Error, Accept]
+    ): Future[Xor[Error, Success]] = buildRequest match {
+      case Valid(req) => handleRequest(req)
+        .flatMap {
+          rep => decodeResponse[Success](rep).map(Xor.right[Error, Success])
+        }.rescue {
+          case ErrorResponse(_, rep) => decodeResponse[Error](rep).map(Xor.left[Error, Success])
+        }
+      case Invalid(errs) => Future.exception(RequestBuildingError(errs))
+    }
 
   }
 
@@ -112,8 +204,13 @@ trait RequestTypes { self: Client =>
     def send[K]()(implicit
       canBuild: CanBuildRequest[GetRequest[Accept]],
       decodeAll: DecodeAll[K, Accept]
-    ): Future[Validated[InvalidResponse, K]] = sendRequest[K](canBuild, decodeAll)
+    ): Future[K] = sendRequest[K](canBuild, decodeAll)
 
+    def send[Error, Success]()(implicit
+      canBuild: CanBuildRequest[GetRequest[Accept]],
+      decodeAllError: DecodeAll[Error, Accept],
+      decodeAllSuccess: DecodeAll[Success, Accept]
+    ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
   case class PostRequest[Content, ContentType, Accept <: Coproduct] (
@@ -187,7 +284,13 @@ trait RequestTypes { self: Client =>
     def send[K]()(implicit
       canBuild: CanBuildRequest[PostRequest[Content, ContentType, Accept]],
       decodeAll: DecodeAll[K, Accept]
-    ): Future[Validated[InvalidResponse, K]] = sendRequest[K](canBuild, decodeAll)
+    ): Future[K] = sendRequest[K](canBuild, decodeAll)
+
+    def send[Error, Success]()(implicit
+      canBuild: CanBuildRequest[PostRequest[Content, ContentType, Accept]],
+      decodeAllError: DecodeAll[Error, Accept],
+      decodeAllSuccess: DecodeAll[Success, Accept]
+    ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
   case class FormPostRequest[
@@ -262,7 +365,13 @@ trait RequestTypes { self: Client =>
     def send[K]()(implicit
       canBuild: CanBuildRequest[FormPostRequest[Accept, Elements]],
       decodeAll: DecodeAll[K, Accept]
-    ): Future[Validated[InvalidResponse, K]] = sendRequest[K](canBuild, decodeAll)
+    ): Future[K] = sendRequest[K](canBuild, decodeAll)
+
+    def send[Error, Success]()(implicit
+      canBuild: CanBuildRequest[FormPostRequest[Accept, Elements]],
+      decodeAllError: DecodeAll[Error, Accept],
+      decodeAllSuccess: DecodeAll[Success, Accept]
+    ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
   case class PutRequest[Content, ContentType, Accept <: Coproduct](
@@ -293,7 +402,13 @@ trait RequestTypes { self: Client =>
     def send[K]()(implicit
       canBuild: CanBuildRequest[PutRequest[Content, ContentType, Accept]],
       decodeAll: DecodeAll[K, Accept]
-    ): Future[Validated[InvalidResponse, K]] = sendRequest[K](canBuild, decodeAll)
+    ): Future[K] = sendRequest[K](canBuild, decodeAll)
+
+    def send[Error, Success]()(implicit
+      canBuild: CanBuildRequest[PutRequest[Content, ContentType, Accept]],
+      decodeAllError: DecodeAll[Error, Accept],
+      decodeAllSuccess: DecodeAll[Success, Accept]
+    ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
   case class HeadRequest(
@@ -309,7 +424,7 @@ trait RequestTypes { self: Client =>
     def send[Response]()(implicit
       canBuild: CanBuildRequest[HeadRequest],
       decodeAll: DecodeAll[Response, Nothing]
-    ): Future[Validated[InvalidResponse, Response]] = sendRequest[Response](canBuild, decodeAll)
+    ): Future[Response] = sendRequest[Response](canBuild, decodeAll)
   }
 
   case class DeleteRequest[Accept <: Coproduct](
@@ -329,7 +444,13 @@ trait RequestTypes { self: Client =>
     def send[K]()(implicit
       canBuild: CanBuildRequest[DeleteRequest[Accept]],
       decodeAll: DecodeAll[K, Accept]
-    ): Future[Validated[InvalidResponse, K]] = sendRequest[K](canBuild, decodeAll)
+    ): Future[K] = sendRequest[K](canBuild, decodeAll)
+
+    def send[Error, Success]()(implicit
+      canBuild: CanBuildRequest[DeleteRequest[Accept]],
+      decodeAllError: DecodeAll[Error, Accept],
+      decodeAllSuccess: DecodeAll[Success, Accept]
+    ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
 }

@@ -11,7 +11,7 @@ package object support {
 
   @implicitNotFound("""In order to decode a request to ${A}, it must be known that a decoder exists to ${A} from
 all the content types that you Accept, which is currently ${ContentTypes}.
-You may have forgotten to specify Accept types with the `accept[T <: Coproduct]` method,
+You may have forgotten to specify Accept types with the `accept(..)` method,
 or you may be missing Decoder instances for some content types.
 """)
   sealed trait DecodeAll[A, ContentTypes <: Coproduct] {
