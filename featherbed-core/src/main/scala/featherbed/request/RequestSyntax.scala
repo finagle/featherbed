@@ -75,7 +75,7 @@ trait RequestTypes { self: Client =>
       out.uri = in.uri
       out.content = in.content
       in.headerMap.foreach {
-        case (k,v) => out.headerMap.put(k,v)
+        case (k, v) => out.headerMap.put(k, v)
       }
       out
     }
