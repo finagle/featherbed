@@ -10,7 +10,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterEach, FlatSpec}
 import shapeless.{CNil, Coproduct, Witness}
 
-class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAndAfterEach {
+class ClientSpec extends FlatSpec with MockFactory with ClientTest {
 
   val receiver = stubFunction[Request, Unit]("receiveRequest")
 
@@ -27,9 +27,9 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
 
     val req = client.get("foo/bar").accept("text/plain")
 
-    Await.result(for {
+    intercept[Throwable](Await.result(for {
       rep <- req.send[String]()
-    } yield ())
+    } yield ()))
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
@@ -45,9 +45,9 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
       .withQueryParams("param" -> "value")
       .accept("text/plain")
 
-    Await.result(for {
+    intercept[Throwable](Await.result(for {
       rep <- req.send[String]()
-    } yield ())
+    } yield ()))
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar?param=value")
@@ -62,9 +62,9 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
       .withContent("Hello world", "text/plain")
       .accept("text/plain")
 
-    Await.result(for {
+    intercept[Throwable](Await.result(for {
       rep <- req.send[String]()
-    } yield ())
+    } yield ()))
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
@@ -81,7 +81,7 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
       .withParams("foo" -> "bar", "bar" -> "baz")
       .accept("text/plain")
 
-    Await.result(req.send[String]())
+    intercept[Throwable](Await.result(req.send[String]()))
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
@@ -96,7 +96,7 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
     val req = client
       .head("foo/bar")
 
-    Await.result(req.send[Response]())
+    intercept[Throwable](Await.result(req.send[Response]()))
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
@@ -109,7 +109,7 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
       .delete("foo/bar")
       .accept("text/plain")
 
-    Await.result(req.send[String]())
+    intercept[Throwable](Await.result(req.send[String]()))
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
@@ -123,7 +123,7 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest with BeforeAn
       .withContent("Hello world", "text/plain")
       .accept("text/plain")
 
-    Await.result(req.send[String]())
+    intercept[Throwable](Await.result(req.send[String]()))
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
