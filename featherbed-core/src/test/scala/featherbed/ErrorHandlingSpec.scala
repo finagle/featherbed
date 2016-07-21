@@ -216,4 +216,45 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       assert(result == Xor.Right(testResponse))
     }
   }
+
+  "sendZip[Error, Success]" - {
+    "returns successful future when request fails with valid error response" - {
+      (400 to 404) ++ (500 to 503) foreach { code =>
+        code.toString in {
+          receiver expects * returning {
+            val response = Response()
+            response.statusCode = code
+            response.contentType = "application/json"
+            response.contentString = testError.asJson.noSpaces
+            response
+          }
+          val content: TestContent = GoodContent
+          val req = client.post("foo")
+            .withContent(content, "test/content")
+            .accept("application/json")
+
+          val result = Await.result(req.sendZip[TestError, TestResponse]())
+          assert(result._1 == Xor.Left(testError))
+          assert(result._2.isInstanceOf[Response])
+        }
+      }
+    }
+
+    "returns successful future when everything works" in {
+      receiver expects * returning {
+        val response = Response()
+        response.statusCode = 200
+        response.contentType = "application/json"
+        response.contentString = testResponse.asJson.noSpaces
+        response
+      }
+      val content: TestContent = GoodContent
+      val req = client.post("foo")
+        .withContent(content, "test/content")
+        .accept("application/json")
+      val result = Await.result(req.sendZip[TestError, TestResponse]())
+      assert(result._1 == Xor.Right(testResponse))
+      assert(result._2.isInstanceOf[Response])
+    }
+  }
 }
