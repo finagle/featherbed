@@ -190,7 +190,8 @@ trait RequestTypes { self: Client =>
       canBuild: CanBuildRequest[Self],
       decodeAllSuccess: DecodeAll[Success, Accept],
       decodeAllError: DecodeAll[Error, Accept]
-    ): Future[Xor[Error, Success]] = sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError).map(_._1)
+    ): Future[Xor[Error, Success]] =
+      sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError).map(_._1)
 
   }
 
