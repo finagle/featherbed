@@ -84,4 +84,4 @@ by treating `"application/json"` as a value of *type* `"application/string"` rat
 more information about singleton literals and their (amazing) implications, check out some of the projects in
 Typelevel Scala (particularly Shapeless).  Scala can do some amazing things (but it does need a little help once in a while.)
 
-Next, read about [Response Decoding and Validation](03-response-decoding-and-validation.html)
+Next, read about [Response Decoding and Validation](04-response-decoding-and-validation.html)

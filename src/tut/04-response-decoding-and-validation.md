@@ -118,4 +118,4 @@ and give the original `Response`.  In the first case, we get back Circe's parsin
 case, we get a message that the content type wasn't expected and therefore there isn't a decoder for it.
 This helps us deal with inevitable runtime failures resulting from external systems.
 
-Next, read about [Building REST Clients](04-building-rest-clients.html)
+Next, read about [Building REST Clients](05-building-rest-clients.html)
