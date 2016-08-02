@@ -97,4 +97,4 @@ Await.result {
 ```
 
 
-Next, read about [Content types and Encoders](02-content-types-and-encoders.html)
+Next, read about [Content types and Encoders](03-content-types-and-encoders.html)
