@@ -172,19 +172,26 @@ trait RequestTypes { self: Client =>
         case Invalid(errs) => Future.exception(RequestBuildingError(errs))
       }
 
+    protected def sendZipRequest[Error, Success](implicit
+      canBuild: CanBuildRequest[Self],
+      decodeAllSuccess: DecodeAll[Success, Accept],
+      decodeAllError: DecodeAll[Error, Accept]
+    ): Future[(Xor[Error, Success], Response)] = buildRequest match {
+      case Valid(req) => handleRequest(req)
+        .flatMap {
+          rep => decodeResponse[Success](rep).map(Xor.right[Error, Success]).map((_, rep))
+        }.rescue {
+          case ErrorResponse(_, rep) => decodeResponse[Error](rep).map(Xor.left[Error, Success]).map((_, rep))
+        }
+      case Invalid(errs) => Future.exception(RequestBuildingError(errs))
+    }
+
     protected def sendRequest[Error, Success](implicit
       canBuild: CanBuildRequest[Self],
       decodeAllSuccess: DecodeAll[Success, Accept],
       decodeAllError: DecodeAll[Error, Accept]
-    ): Future[Xor[Error, Success]] = buildRequest match {
-      case Valid(req) => handleRequest(req)
-        .flatMap {
-          rep => decodeResponse[Success](rep).map(Xor.right[Error, Success])
-        }.rescue {
-          case ErrorResponse(_, rep) => decodeResponse[Error](rep).map(Xor.left[Error, Success])
-        }
-      case Invalid(errs) => Future.exception(RequestBuildingError(errs))
-    }
+    ): Future[Xor[Error, Success]] =
+      sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError).map(_._1)
 
   }
 
@@ -210,7 +217,15 @@ trait RequestTypes { self: Client =>
       canBuild: CanBuildRequest[GetRequest[Accept]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
+    ): Future[Xor[Error, Success]] =
+      sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
+
+    def sendZip[Error, Success]()(implicit
+      canBuild: CanBuildRequest[GetRequest[Accept]],
+      decodeAllError: DecodeAll[Error, Accept],
+      decodeAllSuccess: DecodeAll[Success, Accept]
+    ): Future[(Xor[Error, Success], Response)] =
+      sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
   case class PostRequest[Content, ContentType, Accept <: Coproduct] (
@@ -291,6 +306,13 @@ trait RequestTypes { self: Client =>
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
     ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
+
+    def sendZip[Error, Success]()(implicit
+      canBuild: CanBuildRequest[PostRequest[Content, ContentType, Accept]],
+      decodeAllError: DecodeAll[Error, Accept],
+      decodeAllSuccess: DecodeAll[Success, Accept]
+    ): Future[(Xor[Error, Success], Response)] =
+      sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
   case class FormPostRequest[
@@ -372,6 +394,13 @@ trait RequestTypes { self: Client =>
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
     ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
+
+    def sendZip[Error, Success]()(implicit
+      canBuild: CanBuildRequest[FormPostRequest[Accept, Elements]],
+      decodeAllError: DecodeAll[Error, Accept],
+      decodeAllSuccess: DecodeAll[Success, Accept]
+    ): Future[(Xor[Error, Success], Response)] =
+      sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
   case class PutRequest[Content, ContentType, Accept <: Coproduct](
@@ -409,6 +438,13 @@ trait RequestTypes { self: Client =>
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
     ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
+
+    def sendZip[Error, Success]()(implicit
+      canBuild: CanBuildRequest[PutRequest[Content, ContentType, Accept]],
+      decodeAllError: DecodeAll[Error, Accept],
+      decodeAllSuccess: DecodeAll[Success, Accept]
+    ): Future[(Xor[Error, Success], Response)] =
+      sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
   case class HeadRequest(
@@ -451,6 +487,13 @@ trait RequestTypes { self: Client =>
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
     ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
+
+    def sendZip[Error, Success]()(implicit
+      canBuild: CanBuildRequest[DeleteRequest[Accept]],
+      decodeAllError: DecodeAll[Error, Accept],
+      decodeAllSuccess: DecodeAll[Success, Accept]
+    ): Future[(Xor[Error, Success], Response)] =
+      sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
 }
