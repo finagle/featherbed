@@ -1,23 +1,20 @@
 package featherbed.request
 
-import java.net.URL
-import scala.annotation.implicitNotFound
-
-import featherbed.Client
-import featherbed.content
-import featherbed.support.AcceptHeader
-
-import cats.data._, Xor._, Validated._
-import cats.std.list._
-import cats.syntax.traverse._
-import com.twitter.finagle.http.{FormElement, Request, RequestBuilder}
+import cats.data.Validated._
+import cats.data.Xor._
+import cats.data._
 import com.twitter.finagle.http.RequestConfig.Yes
+import com.twitter.finagle.http.{FormElement, Request, RequestBuilder}
 import com.twitter.io.Buf
+import featherbed.{Client, content}
+import featherbed.support.AcceptHeader
 import shapeless.{Coproduct, Witness}
+
+import scala.annotation.implicitNotFound
 
 
 case class RequestBuildingError(errors: NonEmptyList[Throwable])
-  extends Throwable(s"Failed to build request: ${errors.unwrap.mkString(";")}")
+  extends Throwable(s"Failed to build request: ${errors.toList.mkString(";")}")
 
 trait RequestBuilding {
   self: Client with RequestTypes =>

@@ -11,7 +11,7 @@ import featherbed.littlemacros.CoproductMacros
 import featherbed.support.{ContentTypeSupport, DecodeAll, RuntimeContentType}
 
 import cats.data._, Xor._, Validated._
-import cats.std.list._
+import cats.instances.list._
 import com.twitter.finagle.http._
 import com.twitter.finagle.http.Status._
 import com.twitter.util.Future
@@ -134,7 +134,7 @@ trait RequestTypes { self: Client =>
               case Valid(decoded) =>
                 Future(decoded)
               case Invalid(errs) =>
-                Future.exception(InvalidResponse(rep, errs.unwrap.map(_.getMessage).mkString("; ")))
+                Future.exception(InvalidResponse(rep, errs.map(_.getMessage).toList.mkString("; ")))
             }
           case None =>
             Future.exception(InvalidResponse(rep, s"No decoder was found for $mediaType"))
@@ -159,7 +159,7 @@ trait RequestTypes { self: Client =>
               decodeAll.instances.find(_.contentType == mediaType) match {
                 case Some(decoder) =>
                   decoder(rep)
-                    .leftMap(errs => InvalidResponse(rep, errs.unwrap.map(_.getMessage).mkString("; ")))
+                    .leftMap(errs => InvalidResponse(rep, errs.map(_.getMessage).toList.mkString("; ")))
                     .fold(
                       Future.exception(_),
                       Future(_)
@@ -345,7 +345,7 @@ trait RequestTypes { self: Client =>
       withParamsList(
         form match {
           case Left(None) => newParams
-          case Right(currentParams) => newParams combine currentParams
+          case Right(currentParams) => newParams concat currentParams
         })
     }
 
@@ -359,7 +359,7 @@ trait RequestTypes { self: Client =>
       val element = encoder.apply(content, charset) map {
         buf => FileElement(name, buf, Some(contentType), filename)
       }
-      withParamsList(NonEmptyList(element, form.fold(_ => List.empty, _.unwrap)))
+      withParamsList(NonEmptyList(element, form.fold(_ => List.empty, _.toList)))
     }
 
     def send[K]()(implicit
