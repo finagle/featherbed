@@ -1,6 +1,5 @@
 package featherbed.request
 
-import java.net.URL
 import scala.annotation.implicitNotFound
 
 import featherbed.Client
@@ -8,16 +7,13 @@ import featherbed.content
 import featherbed.support.AcceptHeader
 
 import cats.data._, Xor._, Validated._
-import cats.std.list._
-import cats.syntax.traverse._
 import com.twitter.finagle.http.{FormElement, Request, RequestBuilder}
 import com.twitter.finagle.http.RequestConfig.Yes
 import com.twitter.io.Buf
 import shapeless.{Coproduct, Witness}
 
-
 case class RequestBuildingError(errors: NonEmptyList[Throwable])
-  extends Throwable(s"Failed to build request: ${errors.unwrap.mkString(";")}")
+  extends Throwable(s"Failed to build request: ${errors.toList.mkString(";")}")
 
 trait RequestBuilding {
   self: Client with RequestTypes =>

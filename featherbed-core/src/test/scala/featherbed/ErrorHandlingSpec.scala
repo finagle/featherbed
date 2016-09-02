@@ -32,7 +32,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
 
   implicit val testContentEncoder: Encoder[TestContent, Witness.`"test/content"`.T] = Encoder.of("test/content") {
       case (GoodContent, _) => Valid(Buf.Utf8("Good")).toValidatedNel
-      case (BadContent, _) => Invalid(NonEmptyList(new Exception("Bad")))
+      case (BadContent, _) => Invalid(NonEmptyList(new Exception("Bad"), Nil))
     }
 
 
