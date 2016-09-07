@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  
+  <head>
+  <meta charset="UTF-8">
+  <title>featherbed</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#157878">
+  <link rel="stylesheet" href="/featherbed/css/normalize.css">
+  <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" href="/featherbed/css/cayman.css">
+  <link rel="stylesheet" href="/featherbed/css/code.css">
+</head>
+
+
+  <body>
+    <section class="page-header">
+  <h1 class="project-name">featherbed</h1>
+  <h2 class="project-tagline">Asynchronous Scala HTTP client using Finagle, Shapeless and Cats</h2>
+  <a href="https://github.com/jeremyrsmith/featherbed" class="btn">View on GitHub</a>
+</section>
+
+
+    <section class="main-content">
+      
+      <h1 id="building-rest-clients">Building REST Clients</h1>
+
+<p>Previously, we looked at how featherbed’s request specifications are evaluated lazily, and can be re-used to generate
+multiple requests of the same specification.  In this segment, we’ll see how this functionality can be leveraged
+to build resource-oriented client APIs for a REST service.</p>
+
+<p>As an example, we’ll build a Scala client for a subset of the <a href="http://jsonplaceholder.typicode.com/">JSONPlaceholder</a> API.
+The JSONPlaceholder defines the following data types:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="k">case</span> <span class="k">class</span> <span class="nc">Post</span><span class="o">(</span><span class="n">userId</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">title</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span>
+<span class="c1">// defined class Post
+</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Comment</span><span class="o">(</span><span class="n">postId</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">name</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">email</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span>
+<span class="c1">// defined class Comment
+</span></code></pre>
+</div>
+
+<p>We need the usual imports:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">featherbed.circe._</span>
+<span class="c1">// import featherbed.circe._
+</span>
+<span class="k">import</span> <span class="nn">io.circe.generic.auto._</span>
+<span class="c1">// import io.circe.generic.auto._
+</span>
+<span class="k">import</span> <span class="nn">shapeless.Coproduct</span>
+<span class="c1">// import shapeless.Coproduct
+</span>
+<span class="k">import</span> <span class="nn">com.twitter.util.Await</span>
+<span class="c1">// import com.twitter.util.Await
+</span>
+<span class="k">import</span> <span class="nn">java.net.URL</span>
+<span class="c1">// import java.net.URL
+</span></code></pre>
+</div>
+
+<p>And we can define a class for our API client:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">JSONPlaceholderAPI</span><span class="o">(</span><span class="n">baseUrl</span><span class="k">:</span> <span class="kt">URL</span><span class="o">)</span> <span class="o">{</span>
+
+  <span class="k">private</span> <span class="k">val</span> <span class="n">client</span> <span class="k">=</span> <span class="k">new</span> <span class="n">featherbed</span><span class="o">.</span><span class="nc">Client</span><span class="o">(</span><span class="n">baseUrl</span><span class="o">)</span>
+  <span class="k">type</span> <span class="kt">JSON</span> <span class="o">=</span> <span class="nc">Coproduct</span><span class="o">.</span><span class="n">`"application/json"`</span><span class="o">.</span><span class="n">T</span>
+
+  <span class="k">object</span> <span class="nc">posts</span> <span class="o">{</span>
+
+    <span class="k">private</span> <span class="k">val</span> <span class="n">listRequest</span> <span class="k">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="o">(</span><span class="s">"posts"</span><span class="o">).</span><span class="n">accept</span><span class="o">[</span><span class="kt">JSON</span><span class="o">]</span>
+    <span class="k">private</span> <span class="k">val</span> <span class="n">getRequest</span> <span class="k">=</span> <span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="o">(</span><span class="n">s</span><span class="s">"posts/$id"</span><span class="o">).</span><span class="n">accept</span><span class="o">[</span><span class="kt">JSON</span><span class="o">]</span>
+
+    <span class="k">def</span> <span class="n">list</span><span class="o">()</span> <span class="k">=</span> <span class="n">listRequest</span><span class="o">.</span><span class="n">send</span><span class="o">[</span><span class="kt">Seq</span><span class="o">[</span><span class="kt">Post</span><span class="o">]]()</span>
+    <span class="k">def</span> <span class="n">get</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">getRequest</span><span class="o">(</span><span class="n">id</span><span class="o">).</span><span class="n">send</span><span class="o">[</span><span class="kt">Post</span><span class="o">]()</span>
+
+  <span class="o">}</span>
+
+  <span class="k">object</span> <span class="nc">comments</span> <span class="o">{</span>
+    <span class="k">private</span> <span class="k">val</span> <span class="n">listRequest</span> <span class="k">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="o">(</span><span class="s">"comments"</span><span class="o">).</span><span class="n">accept</span><span class="o">[</span><span class="kt">JSON</span><span class="o">]</span>
+    <span class="k">private</span> <span class="k">val</span> <span class="n">getRequest</span> <span class="k">=</span> <span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="o">(</span><span class="n">s</span><span class="s">"comments/$id"</span><span class="o">).</span><span class="n">accept</span><span class="o">[</span><span class="kt">JSON</span><span class="o">]</span>
+
+    <span class="k">def</span> <span class="n">list</span><span class="o">()</span> <span class="k">=</span> <span class="n">listRequest</span><span class="o">.</span><span class="n">send</span><span class="o">[</span><span class="kt">Seq</span><span class="o">[</span><span class="kt">Comment</span><span class="o">]]()</span>
+    <span class="k">def</span> <span class="n">get</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">getRequest</span><span class="o">(</span><span class="n">id</span><span class="o">).</span><span class="n">send</span><span class="o">[</span><span class="kt">Comment</span><span class="o">]()</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+<span class="c1">// defined class JSONPlaceholderAPI
+</span>
+<span class="k">val</span> <span class="n">apiClient</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">JSONPlaceholderAPI</span><span class="o">(</span><span class="k">new</span> <span class="nc">URL</span><span class="o">(</span><span class="s">"http://jsonplaceholder.typicode.com/"</span><span class="o">))</span>
+<span class="c1">// apiClient: JSONPlaceholderAPI = JSONPlaceholderAPI@22c823fb
+</span>
+<span class="nc">Await</span><span class="o">.</span><span class="n">result</span><span class="o">(</span><span class="n">apiClient</span><span class="o">.</span><span class="n">posts</span><span class="o">.</span><span class="n">list</span><span class="o">())</span>
+<span class="c1">// res0: cats.data.Validated[featherbed.InvalidResponse,Seq[Post]] =
+// Valid(Vector(Post(1,1,sunt aut facere repellat provident occaecati excepturi optio reprehenderit,quia et suscipit
+// suscipit recusandae consequuntur expedita et cum
+// reprehenderit molestiae ut ut quas totam
+// nostrum rerum est autem sunt rem eveniet architecto), Post(1,2,qui est esse,est rerum tempore vitae
+// sequi sint nihil reprehenderit dolor beatae ea dolores neque
+// fugiat blanditiis voluptate porro vel nihil molestiae ut reiciendis
+// qui aperiam non debitis possimus qui neque nisi nulla), Post(1,3,ea molestias quasi exercitationem repellat qui ipsa sit aut,et iusto sed quo iure
+// voluptatem occaecati omnis eligendi aut ad
+// voluptatem doloribus vel accusantium quis pariatur
+// molestiae porro eius odio et labore et velit aut), Post(1...
+</span>
+<span class="nc">Await</span><span class="o">.</span><span class="n">result</span><span class="o">(</span><span class="n">apiClient</span><span class="o">.</span><span class="n">posts</span><span class="o">.</span><span class="n">get</span><span class="o">(</span><span class="mi">1</span><span class="o">))</span>
+<span class="c1">// res1: cats.data.Validated[featherbed.InvalidResponse,Post] =
+// Valid(Post(1,1,sunt aut facere repellat provident occaecati excepturi optio reprehenderit,quia et suscipit
+// suscipit recusandae consequuntur expedita et cum
+// reprehenderit molestiae ut ut quas totam
+// nostrum rerum est autem sunt rem eveniet architecto))
+</span></code></pre>
+</div>
+
+
+
+      <footer class="site-footer">
+  <span class="site-footer-owner"><a href="">featherbed</a> is maintained by <a href="http://jeremyrsmith.github.io">Jeremy Smith</a>.</span>
+  <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/pietromenna/jekyll-cayman-theme">Cayman theme</a> by <a href="http://github.com/jasonlong">Jason Long</a>.</span>
+</footer>
+
+
+    </section>
+
+  </body>
+</html>
