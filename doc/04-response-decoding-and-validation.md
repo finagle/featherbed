@@ -61,7 +61,7 @@ import java.net.URL
 // import java.net.URL
 
 val client = new featherbed.Client(new URL("http://localhost:8767/api/"))
-// client: featherbed.Client = featherbed.Client@1b74c1fb
+// client: featherbed.Client = featherbed.Client@1e9cd5e0
 ```
 
 To specify that a response should be decoded, use the `send[T]` method to initiate the request:

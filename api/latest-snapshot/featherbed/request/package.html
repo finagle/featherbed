@@ -1,0 +1,191 @@
+<!DOCTYPE html >
+<html>
+        <head>
+          <title>request - featherbed.request</title>
+          <meta name="description" content="request - featherbed.request" />
+          <meta name="keywords" content="request featherbed.request" />
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link href="../../lib/template.css" media="screen" type="text/css" rel="stylesheet" />
+      <link href="../../lib/diagrams.css" media="screen" type="text/css" rel="stylesheet" id="diagrams-css" />
+      <script type="text/javascript" src="../../lib/jquery.js" id="jquery-js"></script>
+      <script type="text/javascript" src="../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../lib/template.js"></script>
+      <script type="text/javascript" src="../../lib/tools.tooltip.js"></script>
+      
+      <script type="text/javascript">
+         if(top === self) {
+            var url = '../../index.html';
+            var hash = 'featherbed.request.package';
+            var anchor = window.location.hash;
+            var anchor_opt = '';
+            if (anchor.length >= 1)
+              anchor_opt = '@' + anchor.substring(1);
+            window.location.href = url + '#' + hash + anchor_opt;
+         }
+   	  </script>
+    
+        </head>
+        <body class="value">
+      <div id="definition">
+        <img alt="Package" src="../../lib/package_big.png" />
+        <p id="owner"><a href="../package.html" class="extype" name="featherbed">featherbed</a></p>
+        <h1>request</h1><span class="permalink">
+      <a href="../../index.html#featherbed.request.package" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      </div>
+
+      <h4 id="signature" class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <span class="name">request</span>
+      </span>
+      </h4>
+      
+          <div id="comment" class="fullcommenttop"></div>
+        
+
+      <div id="mbrsel">
+        <div id="textfilter"><span class="pre"></span><span class="input"><input id="mbrsel-input" type="text" accesskey="/" /></span><span class="post"></span></div>
+        
+        
+        <div id="visbl">
+            <span class="filtertype">Visibility</span>
+            <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+          </div>
+      </div>
+
+      <div id="template">
+        <div id="allMembers">
+        
+
+        <div id="types" class="types members">
+              <h3>Type Members</h3>
+              <ol><li name="featherbed.request.ErrorResponse" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="ErrorResponseextendsThrowablewithProductwithSerializable"></a>
+      <a id="ErrorResponse:ErrorResponse"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="ErrorResponse.html"><span class="name">ErrorResponse</span></a><span class="params">(<span name="request">request: <a href="https://twitter.github.io/finagle/docs/index.html#com.twitter.finagle.http.Request" class="extype" target="_top">Request</a></span>, <span name="response">response: <a href="https://twitter.github.io/finagle/docs/index.html#com.twitter.finagle.http.Response" class="extype" target="_top">Response</a></span>)</span><span class="result"> extends <span class="extype" name="scala.Throwable">Throwable</span> with <a href="http://www.scala-lang.org/api/2.11.8/index.html#scala.Product" class="extype" target="_top">Product</a> with <a href="http://www.scala-lang.org/api/2.11.8/index.html#scala.Serializable" class="extype" target="_top">Serializable</a></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#featherbed.request.package@ErrorResponseextendsThrowablewithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="featherbed.request.InvalidResponse" visbl="pub" data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="InvalidResponseextendsThrowablewithProductwithSerializable"></a>
+      <a id="InvalidResponse:InvalidResponse"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="InvalidResponse.html"><span class="name">InvalidResponse</span></a><span class="params">(<span name="response">response: <a href="https://twitter.github.io/finagle/docs/index.html#com.twitter.finagle.http.Response" class="extype" target="_top">Response</a></span>, <span name="reason">reason: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <span class="extype" name="scala.Throwable">Throwable</span> with <a href="http://www.scala-lang.org/api/2.11.8/index.html#scala.Product" class="extype" target="_top">Product</a> with <a href="http://www.scala-lang.org/api/2.11.8/index.html#scala.Serializable" class="extype" target="_top">Serializable</a></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#featherbed.request.package@InvalidResponseextendsThrowablewithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      <p class="shortcomment cmt">Represents a <span class="extype" name="Response">Response</span> which was not valid, because:
+1.</p><div class="fullcomment"><div class="comment cmt"><p>Represents a <span class="extype" name="Response">Response</span> which was not valid, because:
+1. It did not conform to the specification of the <code>Accept</code> header that was specified in the request, and/or
+2. The Content-Type was missing or there was no available decoder, or
+3. Decoding of the request failed
+</p></div><dl class="paramcmts block"><dt class="param">response</dt><dd class="cmt"><p>The original <span class="extype" name="Response">Response</span>, so it can be further processed if desired</p></dd><dt class="param">reason</dt><dd class="cmt"><p>A <span class="extype" name="String">String</span> describing why the response was invalid</p></dd></dl></div>
+    </li><li name="featherbed.request.RequestBuilding" visbl="pub" data-isabs="true" fullComment="no" group="Ungrouped">
+      <a id="RequestBuildingextendsAnyRef"></a>
+      <a id="RequestBuilding:RequestBuilding"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a href="RequestBuilding.html"><span class="name">RequestBuilding</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.11.8/index.html#scala.AnyRef" class="extype" target="_top">AnyRef</a></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#featherbed.request.package@RequestBuildingextendsAnyRef" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="featherbed.request.RequestBuildingError" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="RequestBuildingErrorextendsThrowablewithProductwithSerializable"></a>
+      <a id="RequestBuildingError:RequestBuildingError"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="RequestBuildingError.html"><span class="name">RequestBuildingError</span></a><span class="params">(<span name="errors">errors: <a href="http://typelevel.org/cats/api/index.html#cats.data.NonEmptyList" class="extype" target="_top">NonEmptyList</a>[<span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result"> extends <span class="extype" name="scala.Throwable">Throwable</span> with <a href="http://www.scala-lang.org/api/2.11.8/index.html#scala.Product" class="extype" target="_top">Product</a> with <a href="http://www.scala-lang.org/api/2.11.8/index.html#scala.Serializable" class="extype" target="_top">Serializable</a></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#featherbed.request.package@RequestBuildingErrorextendsThrowablewithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="featherbed.request.RequestTypes" visbl="pub" data-isabs="true" fullComment="no" group="Ungrouped">
+      <a id="RequestTypesextendsAnyRef"></a>
+      <a id="RequestTypes:RequestTypes"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a href="RequestTypes.html"><span class="name">RequestTypes</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.11.8/index.html#scala.AnyRef" class="extype" target="_top">AnyRef</a></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#featherbed.request.package@RequestTypesextendsAnyRef" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li></ol>
+            </div>
+
+        
+
+        
+
+        
+
+        
+        </div>
+
+        <div id="inheritedMembers">
+        
+        
+        </div>
+
+        <div id="groupedMembers">
+        <div class="group" name="Ungrouped">
+              <h3>Ungrouped</h3>
+              
+            </div>
+        </div>
+
+      </div>
+
+      <div id="tooltip"></div>
+
+      <div id="footer">  </div>
+
+
+    </body>
+      </html>

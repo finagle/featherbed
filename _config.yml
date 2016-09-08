@@ -1,0 +1,25 @@
+# Setup
+title:        featherbed
+tagline:      Asynchronous Scala HTTP client using Finagle, Shapeless and Cats
+baseurl:      "/featherbed"
+#paginate:     1
+
+# About/contact
+author:
+  name:       Jeremy Smith
+  url:        http://jeremyrsmith.github.io 
+
+# Gems
+gems:
+  - jekyll-paginate
+  - kramdown
+  - rouge
+
+#Others
+markdown: kramdown
+
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  highlighter: rouge
+
