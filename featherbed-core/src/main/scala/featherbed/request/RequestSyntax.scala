@@ -4,17 +4,17 @@ package request
 import java.io.File
 import java.net.{URL, URLEncoder}
 import java.nio.charset.{Charset, StandardCharsets}
-import scala.language.experimental.macros
 
-import featherbed.content.Encoder
-import featherbed.littlemacros.CoproductMacros
-import featherbed.support.{ContentTypeSupport, DecodeAll, RuntimeContentType}
+import scala.language.experimental.macros
 
 import cats.data._, Xor._, Validated._
 import cats.instances.list._
 import com.twitter.finagle.http._
 import com.twitter.finagle.http.Status._
 import com.twitter.util.Future
+import featherbed.content.{Decoder, Encoder}
+import featherbed.littlemacros.CoproductMacros
+import featherbed.support.{ContentType, DecodeAll, RuntimeContentType}
 import shapeless.{CNil, Coproduct, Witness}
 
 
@@ -126,7 +126,7 @@ trait RequestTypes { self: Client =>
 
 
     protected def decodeResponse[T](rep: Response)(implicit decodeAll: DecodeAll[T, Accept]) =
-      rep.contentType flatMap ContentTypeSupport.contentTypePieces match {
+      rep.contentType flatMap ContentType.contentTypePieces match {
         case None => Future.exception(InvalidResponse(rep, "Content-Type header is not present"))
         case Some(RuntimeContentType(mediaType, _)) => decodeAll.instances.find(_.contentType == mediaType) match {
           case Some(decoder) =>
@@ -153,10 +153,9 @@ trait RequestTypes { self: Client =>
     ): Future[K] =
       buildRequest match {
         case Valid(req) => handleRequest(req).flatMap { rep =>
-          rep.contentType flatMap ContentTypeSupport.contentTypePieces match {
-            case None => Future.exception(InvalidResponse(rep, "Content-Type header is not present"))
-            case Some(RuntimeContentType(mediaType, _)) =>
-              decodeAll.instances.find(_.contentType == mediaType) match {
+          rep.contentType.getOrElse("*/*") match {
+            case ContentType(RuntimeContentType(mediaType, _)) =>
+              decodeAll.findInstance(mediaType) match {
                 case Some(decoder) =>
                   decoder(rep)
                     .leftMap(errs => InvalidResponse(rep, errs.map(_.getMessage).toList.mkString("; ")))
@@ -167,6 +166,7 @@ trait RequestTypes { self: Client =>
                 case None =>
                   Future.exception(InvalidResponse(rep, s"No decoder was found for $mediaType"))
               }
+            case other => Future.exception(InvalidResponse(rep, s"Content-Type $other is not valid"))
           }
         }
         case Invalid(errs) => Future.exception(RequestBuildingError(errs))
@@ -457,7 +457,7 @@ trait RequestTypes { self: Client =>
     def withCharset(charset: Charset): HeadRequest = copy(charset = charset)
     def withUrl(url: URL): HeadRequest = copy(url = url)
 
-    def send[Response]()(implicit
+    def send()(implicit
       canBuild: CanBuildRequest[HeadRequest],
       decodeAll: DecodeAll[Response, Nothing]
     ): Future[Response] = sendRequest[Response](canBuild, decodeAll)

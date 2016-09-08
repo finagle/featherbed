@@ -15,8 +15,8 @@ to implement a content type for yourself, you can read about it later on (it's n
 typeclasses and singleton literals.)
 
 Let's take a look at how we might interact with a service that accepts JSON payloads.  We'll use the provided module
-`featherbed-circe`, which provides automatic JSON encoding and decoding using the excellent Circe library
-from the Typelevel stack.
+`featherbed-circe`, which provides automatic JSON encoding and decoding using the excellent
+[Circe](https://github.com/travisbrown/circe) library from the Typelevel stack.
 
 First, the same setup as before:
 
@@ -46,13 +46,21 @@ in implicit scope, we will be able to pass `A` directly as content in featherbed
 import io.circe.generic.auto._
 import featherbed.circe._
 
+// An ADT for the request
 case class Foo(someText : String, someInt : Int)
+
+// It can be passed directly to the POST
 val req = client.post("foo/bar").withContent(Foo("Hello world!", 42), "application/json")
+
 val result = Await.result {
    req.send[Response]() map {
     response => response.contentString
   }
 }
+```
+
+```tut:invisible
+Await.result(server.close())
 ```
 
 Here we used `io.circe.generic.auto._` to automatically derive a JSON codec for `Foo` - but if you have need to encode
@@ -69,7 +77,7 @@ It's important to note that the request itself **is not performed** until the ca
 you will have an instance of some kind of request, but you will not have a `Future` representing the response.  That is,
 the request itself is *lazy*.  The reason this is important to note is that `req` itself can actually be used to make
 the same request again.  If another call is made to `send`, a new request of the same parameters will be initiated and a
-new `Future` will be returned.  This can be a useful and npowerful thing, but it can also bite you if you're unaware.
+new `Future` will be returned.  This can be a useful and powerful thing, but it can also bite you if you're unaware.
 
 For more information about lazy tasks, take a look at scalaz's `Task` or cats's `Eval`.  Again, this is important to
 note, and is different than what people are used to with Finagle's `Future` (which is not lazy).

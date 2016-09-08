@@ -7,11 +7,11 @@ layout: default
 
 Add the following to build.sbt
 
-```tut:book
+```scala
 resolvers += Resolver.sonatypeRepo("snapshots")
 
 libraryDependencies ++= Seq(
-  "io.github.finagle" %"featherbed_2.11" %"0.1.0-SNAPSHOT"
+  "io.github.finagle" %"featherbed_2.11" %"0.2.1-SNAPSHOT"
 )
 ```
 Next, read about [Basic Usage](02-basic-usage.html)

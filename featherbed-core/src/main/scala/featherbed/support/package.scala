@@ -16,6 +16,8 @@ or you may be missing Decoder instances for some content types.
 """)
   sealed trait DecodeAll[A, ContentTypes <: Coproduct] {
     val instances: List[content.Decoder.Aux[_, A]]
+    def findInstance(ct: String): Option[content.Decoder.Aux[_, A]] =
+      instances.find(_.contentType == ct) orElse instances.find(_.contentType == "*/*")
   }
 
   object DecodeAll {
@@ -35,7 +37,7 @@ or you may be missing Decoder instances for some content types.
     implicit val decodeResponse = new DecodeAll[Response, Nothing] {
       val instances = new content.Decoder[Response] {
         type Out = Response
-        val contentType = "Nothing"
+        val contentType = "*/*"
         def apply(response: Response) = Valid(response)
       } :: Nil
     }

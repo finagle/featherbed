@@ -8,14 +8,19 @@ layout: default
 Assuming an HTTP server exists at `localhost:8765`:
 
 ```tut:book
+
+// set up a dummy HTTP service on port 8675 that just echoes some request information
+
 import com.twitter.util.Future
 import com.twitter.finagle.{Service,Http}
-import com.twitter.finagle.http.{Request,Response}
+import com.twitter.finagle.http.{Request,Response,Method}
 import java.net.InetSocketAddress
 val server = Http.serve(new InetSocketAddress(8765), new Service[Request, Response] {
   def apply(request: Request): Future[Response] = Future {
     val rep = Response()
-    rep.contentString = s"${request.method} ${request.uri} :: ${request.contentString}"
+    rep.headerMap.put("X-Foo", "Bar")
+    if(request.method != Method.Head)
+      rep.contentString = s"${request.method} ${request.uri} :: ${request.contentString}"
     rep
   }
 })
@@ -51,13 +56,15 @@ mapping the `Future[Response]` to a `Future[String]` which will contain the resp
 Besides `get`, the other REST verbs are also available; the process of specifying a request has a fluent API which
 can be used to fine-tune the request that will be sent.
 
+Here's an example of using a `POST` request to submit a web form-style request:
+
 ```tut:book
 import java.nio.charset.StandardCharsets._
 
 Await.result {
   client
     .post("another/resource")
-    .withForm(
+    .withParams(
       "foo" -> "foz",
       "bar" -> "baz")
     .withCharset(UTF_8)
@@ -69,11 +76,26 @@ Await.result {
 }
 ```
 
+Here's how you might send a `HEAD` request (note the lack of a type argument to `send()` for a HEAD request):
+
 ```tut:book
 Await.result {
-  client.head("head/request").map(_.headerMap)
+  client.head("head/request").send().map(_.headerMap)
 }
 ```
+
+A `DELETE` request:
+
+```tut:book
+Await.result {
+  client.delete("delete/request").send[Response]() map {
+    response => response.statusCode
+  }
+}
+```
+
+And a `PUT` request - notice how content can be provided to a `PUT` request by giving it a `Buf` buffer and a MIME type
+to serve as the `Content-Type`:
 
 ```tut:book
 import com.twitter.io.Buf
@@ -88,13 +110,25 @@ Await.result {
 }
 ```
 
+You can also provide content to a `POST` request in the same fashion:
+
 ```tut:book
+import com.twitter.io.Buf
+
 Await.result {
-  client.delete("delete/request").send[Response]() map {
-    response => response.statusCode
-  }
+  client.post("another/post/request")
+    .withContent(Buf.Utf8("Hello world!"), "text/plain")
+    .send[Response]()
+    .map {
+      response => response.contentString
+    }
 }
 ```
 
+```tut:invisible
+Await.result(server.close())
+```
 
-Next, read about [Content types and Encoders](03-content-types-and-encoders.html)
+Using a `Buf` for content enables specifying low-level content, but you're usually going to want to use a more
+high-level interface to interact with a REST service. To see how that works, read about
+[Content types and Encoders](03-content-types-and-encoders.html).
