@@ -96,7 +96,7 @@ class ClientSpec extends FlatSpec with MockFactory with ClientTest {
     val req = client
       .head("foo/bar")
 
-    intercept[Throwable](Await.result(req.send()))
+    Await.result(req.send())
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
