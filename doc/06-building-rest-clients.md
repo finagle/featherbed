@@ -67,7 +67,7 @@ class JSONPlaceholderAPI(baseUrl: URL) {
 // defined class JSONPlaceholderAPI
 
 val apiClient = new JSONPlaceholderAPI(new URL("http://jsonplaceholder.typicode.com/"))
-// apiClient: JSONPlaceholderAPI = JSONPlaceholderAPI@2864f2a
+// apiClient: JSONPlaceholderAPI = JSONPlaceholderAPI@4dfd0a78
 
 Await.result(apiClient.posts.list())
 // res0: Seq[Post] =

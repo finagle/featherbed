@@ -13,4 +13,5 @@ function as unit tests!
  2. [Basic Usage](02-basic-usage.html)
  3. [Content Types and Encoders](03-content-types-and-encoders.html)
  4. [Response Decoding and Validation](04-response-decoding-and-validation.html)
- 5. [Building REST Clients](05-building-rest-clients.html)
+ 5. [Error Handling](05-error-handling.html)
+ 6. [Building REST Clients](06-building-rest-clients.html)

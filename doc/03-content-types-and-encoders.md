@@ -46,7 +46,7 @@ import java.net.URL
 // import java.net.URL
 
 val client = new featherbed.Client(new URL("http://localhost:8766/api/"))
-// client: featherbed.Client = featherbed.Client@500da9d7
+// client: featherbed.Client = featherbed.Client@7656f63b
 ```
 
 Importing `featherbed.circe._` brings an implicit derivation from `io.circe.Encoder[A]` to

@@ -67,7 +67,7 @@ case class Foo(foo: String)
 
 // the client
 val client = new featherbed.Client(new URL("http://localhost:8768/api/"))
-// client: featherbed.Client = featherbed.Client@507d9270
+// client: featherbed.Client = featherbed.Client@6e8c59bf
 ```
 
 When using the `send[T]` method, the resulting `Future` will *fail* if the server returns an HTTP error. This means that

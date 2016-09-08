@@ -5,6 +5,10 @@ title: featherbed
 
 # featherbed
 
+[![Join the chat at https://gitter.im/finagle/featherbed](https://badges.gitter.im/finagle/featherbed.svg)](https://gitter.im/finagle/featherbed?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Build Status](https://img.shields.io/travis/finagle/featherbed/master.svg)](https://travis-ci.org/finagle/featherbed)
+[![Maven Central](https://img.shields.io/maven-central/v/com.github.finagle/featherbed-core_2.11.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.finagle/featherbed-core_2.11)
+
 Featherbed aims to be a typesafe, functional REST client API over [Finagle](https://github.com/twitter/finagle).
 It provides a friendlier approach to building REST client interfaces in Scala.  Currently, Featherbed
 is in the early stages of development, and includes the following modules:
@@ -17,7 +21,9 @@ The following modules are planned:
  1. `featherbed-oauth` - OAuth authenticated requests
 
 ## Documentation
-To get started with featherbed, check out the [Guide](doc/).
+To get started with featherbed, check out the [Guide](doc/). Detailed API documentation is available:
+
+* For the [latest snapshot build](api/latest-snapshot)
 
 ## Dependencies
 
