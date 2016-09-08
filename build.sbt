@@ -67,7 +67,7 @@ lazy val noPublish = Seq(
 lazy val allSettings = publishSettings ++ baseSettings ++ buildSettings
 
 lazy val `featherbed-core` = project
-  .settings(allSettings)
+  .settings(allSettings ++ tutSettings)
 
 lazy val `featherbed-circe` = project
   .settings(allSettings)
@@ -77,14 +77,14 @@ val scaladocVersionPath = settingKey[String]("Path to this version's ScalaDoc")
 val scaladocLatestPath = settingKey[String]("Path to latest ScalaDoc")
 val tutPath = settingKey[String]("Path to tutorials")
 
-lazy val `docs` = project
+lazy val docs: Project = project
     .settings(
-      allSettings ++ tutSettings ++ ghpages.settings ++ Seq(
+      allSettings ++ ghpages.settings ++ Seq(
         scaladocVersionPath := ("api/" + version.value),
         scaladocLatestPath := (if (isSnapshot.value) "api/latest-snapshot" else "api/latest"),
         tutPath := "doc",
         includeFilter in makeSite := (includeFilter in makeSite).value || "*.md" || "*.yml",
-        addMappingsToSiteDir(tut, tutPath),
+        addMappingsToSiteDir(tut in `featherbed-core`, tutPath),
         addMappingsToSiteDir(mappings in (featherbed, ScalaUnidoc, packageDoc), scaladocLatestPath),
         addMappingsToSiteDir(mappings in (featherbed, ScalaUnidoc, packageDoc), scaladocVersionPath),
         ghpagesNoJekyll := false,
@@ -95,5 +95,5 @@ lazy val `docs` = project
 
 lazy val featherbed = project
   .in(file("."))
-  .settings(unidocSettings ++ baseSettings ++ buildSettings)
+  .settings(unidocSettings ++ tutSettings ++ baseSettings ++ buildSettings)
   .aggregate(`featherbed-core`, `featherbed-circe`)
