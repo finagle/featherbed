@@ -4,7 +4,6 @@ package request
 import java.io.File
 import java.net.{URL, URLEncoder}
 import java.nio.charset.{Charset, StandardCharsets}
-
 import scala.language.experimental.macros
 
 import cats.data._, Xor._, Validated._

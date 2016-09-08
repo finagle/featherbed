@@ -1,6 +1,7 @@
 name := "featherbed"
-import com.typesafe.sbt.SbtGhPages.GhPagesKeys._
+
 import sbtunidoc.Plugin.UnidocKeys._
+import com.typesafe.sbt.SbtGhPages.GhPagesKeys._
 
 lazy val buildSettings = Seq(
   organization := "io.github.finagle",
