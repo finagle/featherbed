@@ -70,6 +70,12 @@ class Client(
   def delete(relativePath: String): DeleteRequest[Coproduct.`"*/*"`.T] =
     DeleteRequest[Coproduct.`"*/*"`.T](baseUrl.toURI.resolve(relativePath).toURL, List.empty)
 
+  /**
+    *  Close this client releasing allocated resources.
+    */
+  def close (): Unit =
+    httpClient.close()
+
   protected def clientTransform(client: Http.Client): Http.Client = client
 
   protected val client = clientTransform(Client.forUrl(baseUrl))
