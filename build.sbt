@@ -9,7 +9,7 @@ lazy val buildSettings = Seq(
   scalaVersion := "2.11.8"
 )
 
-val finagleVersion = "6.35.0"
+val finagleVersion = "6.38.0"
 val shapelessVersion = "2.3.0"
 val catsVersion = "0.7.2"
 
