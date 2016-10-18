@@ -97,3 +97,16 @@ lazy val featherbed = project
   .in(file("."))
   .settings(unidocSettings ++ tutSettings ++ baseSettings ++ buildSettings)
   .aggregate(`featherbed-core`, `featherbed-circe`)
+
+val validateCommands = List(
+  "clean",
+  "scalastyle",
+  "test:scalastyle",
+  "compile",
+  "test:compile",
+  "coverage",
+  "test",
+  "tut",
+  "coverageReport"
+)
+addCommandAlias("validate", validateCommands.mkString(";", ";", ""))

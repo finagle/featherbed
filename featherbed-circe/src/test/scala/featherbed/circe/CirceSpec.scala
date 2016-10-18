@@ -1,19 +1,23 @@
 package featherbed.circe
 
-import io.circe._, io.circe.generic.auto._, io.circe.syntax._, io.circe.parser.parse
+import com.twitter.util.Future
+import io.circe._
+import io.circe.generic.auto._
+import io.circe.parser.parse
+import io.circe.syntax._
 import org.scalatest.FlatSpec
 import shapeless.{Coproduct, Witness}
 import shapeless.union.Union
 
-case class Foo(someText : String, someInt : Int)
+case class Foo(someText: String, someInt: Int)
 
 class CirceSpec extends FlatSpec {
 
   "post request of a case class" should "derive JSON encoder" in {
 
-    import com.twitter.util.{Future,Await}
-    import com.twitter.finagle.{Service,Http}
-    import com.twitter.finagle.http.{Request,Response}
+    import com.twitter.util.{Future, Await}
+    import com.twitter.finagle.{Service, Http}
+    import com.twitter.finagle.http.{Request, Response}
     import java.net.InetSocketAddress
 
     val server = Http.serve(new InetSocketAddress(8766), new Service[Request, Response] {
@@ -42,8 +46,6 @@ class CirceSpec extends FlatSpec {
 
     parse("""{"someText": "test", "someInt": 42}""").toValidated.map(_.as[Foo])
 
-    println(result)
-
     Await.result(server.close())
 
   }
@@ -65,18 +67,16 @@ class CirceSpec extends FlatSpec {
         private val listRequest = client.get("posts").accept[JSON]
         private val getRequest = (id: Int) => client.get(s"posts/$id").accept[JSON]
 
-        def list() = listRequest.send[Seq[Post]]()
-        def get(id: Int) = getRequest(id).send[Post]()
-
-
+        def list(): Future[Seq[Post]] = listRequest.send[Seq[Post]]()
+        def get(id: Int): Future[Post] = getRequest(id).send[Post]()
       }
 
       object comments {
         private val listRequest = client.get("comments").accept[JSON]
         private val getRequest = (id: Int) => client.get(s"comments/$id").accept[JSON]
 
-        def list() = listRequest.send[Seq[Comment]]()
-        def get(id: Int) = getRequest(id).send[Comment]()
+        def list(): Future[Seq[Comment]] = listRequest.send[Seq[Comment]]()
+        def get(id: Int): Future[Comment] = getRequest(id).send[Comment]()
       }
     }
 
