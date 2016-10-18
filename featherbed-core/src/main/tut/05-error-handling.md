@@ -18,6 +18,7 @@ import com.twitter.util.{Future,Await}
 import com.twitter.finagle.{Service,Http}
 import com.twitter.finagle.http.{Request,Response,Status,Version}
 import java.net.{URL, InetSocketAddress}
+import featherbed.Client
 import featherbed.request.ErrorResponse
 import featherbed.circe._
 import io.circe.generic.auto._
@@ -51,7 +52,7 @@ val server = Http.serve(new InetSocketAddress(8768), new Service[Request, Respon
 case class Foo(foo: String)
 
 // the client
-val client = new featherbed.Client(new URL("http://localhost:8768/api/"))
+val client = new Client(new URL("http://localhost:8768/api/"))
 ```
 
 When using the `send[T]` method, the resulting `Future` will *fail* if the server returns an HTTP error. This means that

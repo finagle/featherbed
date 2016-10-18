@@ -35,7 +35,8 @@ val server = Http.serve(new InetSocketAddress(8766), new Service[Request, Respon
 })
 
 import java.net.URL
-val client = new featherbed.Client(new URL("http://localhost:8766/api/"))
+import featherbed.Client
+val client = new Client(new URL("http://localhost:8766/api/"))
 ```
 
 Importing `featherbed.circe._` brings an implicit derivation from `io.circe.Encoder[A]` to
