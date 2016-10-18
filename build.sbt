@@ -96,7 +96,20 @@ lazy val docs: Project = project
 lazy val featherbed = project
   .in(file("."))
   .settings(unidocSettings ++ tutSettings ++ baseSettings ++ buildSettings)
-  .aggregate(`featherbed-core`, `featherbed-circe`)
+  .dependsOn(`featherbed-core`, `featherbed-circe`)
+  .settings(
+    initialCommands in console :=
+      """
+          |import com.twitter.util.{Await, Future}
+          |import com.twitter.finagle.{Service, Http}
+          |import com.twitter.finagle.http.{Request, Response, Method}
+          |import java.net.{InetSocketAddress, URL}
+          |import shapeless.Coproduct
+          |import featherbed._
+          |import featherbed.circe._
+          |import io.circe.generic.auto._
+      """.stripMargin
+  )
 
 val validateCommands = List(
   "clean",
