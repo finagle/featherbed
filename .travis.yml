@@ -6,7 +6,7 @@ jdk:
    - oraclejdk8
 
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION clean coverage test coverageReport tut scalastyle
+  - sbt ++$TRAVIS_SCALA_VERSION validate
   - sbt ++$TRAVIS_SCALA_VERSION coverageAggregate
 
 cache:
