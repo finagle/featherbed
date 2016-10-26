@@ -96,6 +96,7 @@ lazy val docs: Project = project
 lazy val featherbed = project
   .in(file("."))
   .settings(unidocSettings ++ tutSettings ++ baseSettings ++ buildSettings)
+  .aggregate(`featherbed-core`, `featherbed-circe`)
   .dependsOn(`featherbed-core`, `featherbed-circe`)
   .settings(
     initialCommands in console :=
