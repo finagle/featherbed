@@ -8,6 +8,7 @@ import scala.language.experimental.macros
 
 import cats.data._, Xor._, Validated._
 import cats.instances.list._
+import com.twitter.finagle.Filter
 import com.twitter.finagle.http._
 import com.twitter.finagle.http.Status._
 import com.twitter.util.Future
@@ -36,11 +37,15 @@ trait RequestTypes { self: Client =>
     val url: URL
     val charset: Charset
     val headers: List[(String, String)]
+    val filters: Filter[Request, Response, Request, Response]
 
     def withHeader(name: String, value: String): Self = withHeaders((name, value))
     def withHeaders(headers: (String, String)*): Self
     def withCharset(charset: Charset): Self
     def withUrl(url: URL): Self
+    def addFilter(filter: Filter[Request, Response, Request, Response]): Self
+    def resetFilters: Self
+    def setFilters(filter: Filter[Request, Response, Request, Response]): Self = resetFilters.addFilter(filter)
 
     def withQuery(query: String): Self = withUrl(new URL(url, url.getFile + "?" + query))
     def withQueryParams(params: List[(String, String)]): Self = withQuery(
@@ -79,49 +84,50 @@ trait RequestTypes { self: Client =>
       out
     }
 
-    private def handleRequest(request: Request, numRedirects: Int = 0): Future[Response] = httpClient(request) flatMap {
-      rep => rep.status match {
-        case Continue =>
-          Future.exception(InvalidResponse(
-            rep,
-            "Received unexpected 100/Continue, but request body was already sent."
-          ))
-        case SwitchingProtocols =>
-          Future.exception(InvalidResponse(
-            rep,
-            "Received unexpected 101/Switching Protocols, but no switch was requested."
-          ))
-        case s if s.code >= 200 && s.code < 300 =>
-          Future(rep)
-        case MultipleChoices =>
-          Future.exception(InvalidResponse(rep, "300/Multiple Choices is not yet supported in featherbed."))
-        case MovedPermanently | Found | SeeOther | TemporaryRedirect =>
-          val attempt = for {
-            tooMany <- if (numRedirects > 5)
-                Xor.left("Too many redirects; giving up")
-              else
-                Xor.right(())
-            location <- Xor.fromOption(
-              rep.headerMap.get("Location"),
-              "Redirect required, but location header not present")
-            newUrl <- Xor.catchNonFatal(url.toURI.resolve(location))
-              .leftMap(_ => s"Could not resolve Location $location")
-            canHandle <- if (newUrl.getHost != url.getHost)
-                Xor.left("Location points to another host; this isn't supported by featherbed")
-              else
-                Xor.right(())
-          } yield {
-            val newReq = cloneRequest(request)
-            newReq.uri = List(Option(newUrl.getPath), Option(newUrl.getQuery).map("?" + _)).flatten.mkString
-            handleRequest(newReq, numRedirects + 1)
-          }
-          attempt.fold(
-            err => Future.exception(InvalidResponse(rep, err)),
-            identity
-          )
-        case other => Future.exception(ErrorResponse(request, rep))
+    private def handleRequest(request: Request, numRedirects: Int = 0): Future[Response] =
+      (filters andThen httpClient)(request) flatMap {
+        rep => rep.status match {
+          case Continue =>
+            Future.exception(InvalidResponse(
+              rep,
+              "Received unexpected 100/Continue, but request body was already sent."
+            ))
+          case SwitchingProtocols =>
+            Future.exception(InvalidResponse(
+              rep,
+              "Received unexpected 101/Switching Protocols, but no switch was requested."
+            ))
+          case s if s.code >= 200 && s.code < 300 =>
+            Future(rep)
+          case MultipleChoices =>
+            Future.exception(InvalidResponse(rep, "300/Multiple Choices is not yet supported in featherbed."))
+          case MovedPermanently | Found | SeeOther | TemporaryRedirect =>
+            val attempt = for {
+              tooMany <- if (numRedirects > 5)
+                  Xor.left("Too many redirects; giving up")
+                else
+                  Xor.right(())
+              location <- Xor.fromOption(
+                rep.headerMap.get("Location"),
+                "Redirect required, but location header not present")
+              newUrl <- Xor.catchNonFatal(url.toURI.resolve(location))
+                .leftMap(_ => s"Could not resolve Location $location")
+              canHandle <- if (newUrl.getHost != url.getHost)
+                  Xor.left("Location points to another host; this isn't supported by featherbed")
+                else
+                  Xor.right(())
+            } yield {
+              val newReq = cloneRequest(request)
+              newReq.uri = List(Option(newUrl.getPath), Option(newUrl.getQuery).map("?" + _)).flatten.mkString
+              handleRequest(newReq, numRedirects + 1)
+            }
+            attempt.fold(
+              err => Future.exception(InvalidResponse(rep, err)),
+              identity
+            )
+          case other => Future.exception(ErrorResponse(request, rep))
+        }
       }
-    }
 
 
     protected def decodeResponse[T](rep: Response)(implicit decodeAll: DecodeAll[T, Accept]) =
@@ -197,7 +203,8 @@ trait RequestTypes { self: Client =>
   case class GetRequest[Accept <: Coproduct](
     url: URL,
     headers: List[(String, String)] = List.empty,
-    charset: Charset = StandardCharsets.UTF_8
+    charset: Charset = StandardCharsets.UTF_8,
+    filters: Filter[Request, Response, Request, Response]
   ) extends RequestSyntax[Accept, GetRequest[Accept]] {
 
     def accept[AcceptTypes <: Coproduct]: GetRequest[AcceptTypes] = copy[AcceptTypes]()
@@ -206,6 +213,9 @@ trait RequestTypes { self: Client =>
     def withHeaders(addHeaders: (String, String)*): GetRequest[Accept] = copy(headers = headers ::: addHeaders.toList)
     def withCharset(charset: Charset): GetRequest[Accept] = copy(charset = charset)
     def withUrl(url: URL): GetRequest[Accept] = copy(url = url)
+    def addFilter(filter: Filter[Request, Response, Request, Response]): GetRequest[Accept] =
+      copy(filters = filter andThen filters)
+    def resetFilters: GetRequest[Accept] = copy(filters = Filter.identity[Request, Response])
 
     def send[K]()(implicit
       canBuild: CanBuildRequest[GetRequest[Accept]],
@@ -231,7 +241,8 @@ trait RequestTypes { self: Client =>
     url: URL,
     content: Content,
     headers: List[(String, String)] = List.empty,
-    charset: Charset = StandardCharsets.UTF_8
+    charset: Charset = StandardCharsets.UTF_8,
+    filters: Filter[Request, Response, Request, Response]
   ) extends RequestSyntax[Accept, PostRequest[Content, ContentType, Accept]] {
 
     def accept[AcceptTypes <: Coproduct]: PostRequest[Content, ContentType, AcceptTypes] =
@@ -244,6 +255,9 @@ trait RequestTypes { self: Client =>
       copy(charset = charset)
     def withUrl(url: URL): PostRequest[Content, ContentType, Accept] =
       copy(url = url)
+    def addFilter(filter: Filter[Request, Response, Request, Response]): PostRequest[Content, ContentType, Accept] =
+      copy(filters = filter andThen filters)
+    def resetFilters: PostRequest[Content, ContentType, Accept] = copy(filters = Filter.identity[Request, Response])
 
     def withContent[T, Type <: String](
       content: T,
@@ -266,7 +280,9 @@ trait RequestTypes { self: Client =>
         Right(NonEmptyList(firstElement, restElements)),
         multipart = false,
         headers,
-        charset)
+        charset,
+        filters
+      )
     }
 
     def addParams(
@@ -291,7 +307,8 @@ trait RequestTypes { self: Client =>
         Right(NonEmptyList(element, Nil)),
         multipart = true,
         headers,
-        charset
+        charset,
+        filters
       )
     }
 
@@ -322,7 +339,8 @@ trait RequestTypes { self: Client =>
     form: Elements = Left(None),
     multipart: Boolean = false,
     headers: List[(String, String)] = List.empty,
-    charset: Charset = StandardCharsets.UTF_8
+    charset: Charset = StandardCharsets.UTF_8,
+    filters: Filter[Request, Response, Request, Response]
   ) extends RequestSyntax[Accept, FormPostRequest[Accept, Elements]] {
 
     def accept[AcceptTypes <: Coproduct]: FormPostRequest[AcceptTypes, Elements] =
@@ -337,6 +355,9 @@ trait RequestTypes { self: Client =>
       copy(url = url)
     def withMultipart(multipart: Boolean): FormPostRequest[Accept, Elements] =
       copy(multipart = multipart)
+    def addFilter(filter: Filter[Request, Response, Request, Response]): FormPostRequest[Accept, Elements] =
+      copy(filters = filter andThen filters)
+    def resetFilters: FormPostRequest[Accept, Elements] = copy(filters = Filter.identity[Request, Response])
 
     private[request] def withParamsList(params: NonEmptyList[ValidatedNel[Throwable, FormElement]]) =
       copy[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]](
@@ -406,7 +427,8 @@ trait RequestTypes { self: Client =>
     url: URL,
     content: Content,
     headers: List[(String, String)] = List.empty,
-    charset: Charset = StandardCharsets.UTF_8
+    charset: Charset = StandardCharsets.UTF_8,
+    filters: Filter[Request, Response, Request, Response]
   ) extends RequestSyntax[Accept, PutRequest[Content, ContentType, Accept]] {
 
     def accept[AcceptTypes <: Coproduct]: PutRequest[Content, ContentType, AcceptTypes] =
@@ -419,6 +441,9 @@ trait RequestTypes { self: Client =>
       copy(charset = charset)
     def withUrl(url: URL): PutRequest[Content, ContentType, Accept] =
       copy(url = url)
+    def addFilter(filter: Filter[Request, Response, Request, Response]): PutRequest[Content, ContentType, Accept] =
+      copy(filters = filter andThen filters)
+    def resetFilters: PutRequest[Content, ContentType, Accept] = copy(filters = Filter.identity[Request, Response])
 
     def withContent[T, Type <: String](
       content: T,
@@ -449,12 +474,16 @@ trait RequestTypes { self: Client =>
   case class HeadRequest(
     url: URL,
     headers: List[(String, String)] = List.empty,
-    charset: Charset = StandardCharsets.UTF_8
+    charset: Charset = StandardCharsets.UTF_8,
+    filters: Filter[Request, Response, Request, Response]
   ) extends RequestSyntax[Nothing, HeadRequest] {
 
     def withHeaders(addHeaders: (String, String)*): HeadRequest = copy(headers = headers ::: addHeaders.toList)
     def withCharset(charset: Charset): HeadRequest = copy(charset = charset)
     def withUrl(url: URL): HeadRequest = copy(url = url)
+    def addFilter(filter: Filter[Request, Response, Request, Response]): HeadRequest =
+      copy(filters = filter andThen filters)
+    def resetFilters: HeadRequest = copy(filters = Filter.identity[Request, Response])
 
     def send()(implicit
       canBuild: CanBuildRequest[HeadRequest],
@@ -465,7 +494,8 @@ trait RequestTypes { self: Client =>
   case class DeleteRequest[Accept <: Coproduct](
     url: URL,
     headers: List[(String, String)] = List.empty,
-    charset: Charset = StandardCharsets.UTF_8
+    charset: Charset = StandardCharsets.UTF_8,
+    filters: Filter[Request, Response, Request, Response]
   ) extends RequestSyntax[Accept, DeleteRequest[Accept]] {
 
     def accept[AcceptTypes <: Coproduct]: DeleteRequest[AcceptTypes] = copy[AcceptTypes]()
@@ -475,6 +505,9 @@ trait RequestTypes { self: Client =>
       copy(headers = headers ::: addHeaders.toList)
     def withCharset(charset: Charset): DeleteRequest[Accept] = copy(charset = charset)
     def withUrl(url: URL): DeleteRequest[Accept] = copy(url = url)
+    def addFilter(filter: Filter[Request, Response, Request, Response]): DeleteRequest[Accept] =
+      copy(filters = filter andThen filters)
+    def resetFilters: DeleteRequest[Accept] = copy(filters = Filter.identity[Request, Response])
 
     def send[K]()(implicit
       canBuild: CanBuildRequest[DeleteRequest[Accept]],

@@ -5,16 +5,26 @@ import java.nio.charset.{Charset, StandardCharsets}
 
 import com.twitter.finagle._
 import com.twitter.finagle.builder.ClientBuilder
-import http.RequestBuilder
+import featherbed.auth.Authorizer
+import http.{Request, RequestBuilder, Response}
 import shapeless.Coproduct
 
 /**
   * A REST client with a given base URL.
   */
-class Client(
+case class Client(
   baseUrl: URL,
-  charset: Charset = StandardCharsets.UTF_8
+  charset: Charset = StandardCharsets.UTF_8,
+  filters: Filter[Request, Response, Request, Response] = Filter.identity[Request, Response]
 ) extends request.RequestTypes with request.RequestBuilding {
+
+  def addFilter(filter: Filter[Request, Response, Request, Response]): Client =
+    copy(filters = filter andThen filters)
+
+  def setFilter(filter: Filter[Request, Response, Request, Response]): Client =
+    copy(filters = filter)
+
+  def authorized(authorizer: Authorizer): Client = setFilter(filters andThen authorizer)
 
   /**
     * Specify a GET request to be performed against the given resource
@@ -25,7 +35,8 @@ class Client(
     GetRequest[Coproduct.`"*/*"`.T](
       baseUrl.toURI.resolve(relativePath).toURL,
       List.empty,
-      charset
+      charset,
+      filters
     )
 
   /**
@@ -38,7 +49,8 @@ class Client(
       baseUrl.toURI.resolve(relativePath).toURL,
       None,
       List.empty,
-      charset
+      charset,
+      filters
     )
 
   /**
@@ -51,7 +63,8 @@ class Client(
       baseUrl.toURI.resolve(relativePath).toURL,
       None,
       List.empty,
-      charset
+      charset,
+      filters
     )
 
   /**
@@ -60,7 +73,7 @@ class Client(
     * @return A [[HeadRequest]] object, which can further specify and send the request
     */
   def head(relativePath: String): HeadRequest =
-    HeadRequest(baseUrl.toURI.resolve(relativePath).toURL, List.empty)
+    HeadRequest(baseUrl.toURI.resolve(relativePath).toURL, List.empty, charset, filters)
 
   /**
     * Specify a DELETE request to be performed against the given resource
@@ -68,7 +81,7 @@ class Client(
     * @return A [[DeleteRequest]] object, which can further specify and send the request
     */
   def delete(relativePath: String): DeleteRequest[Coproduct.`"*/*"`.T] =
-    DeleteRequest[Coproduct.`"*/*"`.T](baseUrl.toURI.resolve(relativePath).toURL, List.empty)
+    DeleteRequest[Coproduct.`"*/*"`.T](baseUrl.toURI.resolve(relativePath).toURL, List.empty, charset, filters)
 
   /**
     *  Close this client releasing allocated resources.
@@ -78,9 +91,11 @@ class Client(
 
   protected def clientTransform(client: Http.Client): Http.Client = client
 
-  protected val client = clientTransform(Client.forUrl(baseUrl))
+  protected lazy val client =
+    clientTransform(Client.forUrl(baseUrl))
 
-  protected[featherbed] val httpClient = client.newService(Client.hostAndPort(baseUrl))
+  protected[featherbed] lazy val httpClient =
+    client.newService(Client.hostAndPort(baseUrl))
 }
 
 object Client {
