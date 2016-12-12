@@ -142,10 +142,9 @@ Await.result {
 
 Here, since we didn't handle the `InvalidResponse`, awaiting the future resulted in an exception being thrown. Instead,
 you can `handle` the failed future and recover in some way. A typical pattern is to capture the error in something like
-an `Xor` (in cats) or an `Either` (in Scala's standard library):
+`Either``:
 
 ```tut:book
-import cats.data.Xor
 import featherbed.request.InvalidResponse
 
 Await.result {
@@ -153,14 +152,14 @@ Await.result {
     .withContent(Foo("Hello world", 42), "application/json")
     .accept("application/json")
 
-  request.send[Foo]().map(Xor.right).handle {
-    case err @ InvalidResponse(rep, reason) => Xor.left(err)
+  request.send[Foo]().map(Right.apply).handle {
+    case err @ InvalidResponse(rep, reason) => Left(err)
   }
 }
 ```
 
-This example maps the `Future`'s successful result into an `Xor.Right`, and the `InvalidResponse` case into `Xor.Left`,
-which represents the failure. The `Xor` can be handled further by the application.
+This example maps the `Future`'s successful result into a `Right`, and the `InvalidResponse` case into a `Left`,
+which represents the failure. The `Either` can be handled further by the application.
 
 Alternatively, you might want to use some default `Foo` in the event that the response can't be decoded:
 
@@ -170,7 +169,7 @@ Await.result {
     .withContent(Foo("Hello world", 42), "application/json")
     .accept("application/json")
 
-  request.send[Foo]().map(Xor.right).handle {
+  request.send[Foo]().map(Right.apply).handle {
     case InvalidResponse(rep, reason) =>
       println(s"ERROR: response decoding failed: $reason")
       Foo("Default", 0)
