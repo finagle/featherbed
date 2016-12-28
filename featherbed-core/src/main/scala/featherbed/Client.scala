@@ -78,9 +78,11 @@ class Client(
 
   protected def clientTransform(client: Http.Client): Http.Client = client
 
+  protected def serviceTransform[Req, Rep](service: Service[Req, Rep]): Service[Req, Rep] = service
+
   protected val client = clientTransform(Client.forUrl(baseUrl))
 
-  protected[featherbed] val httpClient = client.newService(Client.hostAndPort(baseUrl))
+  protected[featherbed] val httpClient = serviceTransform(client.newService(Client.hostAndPort(baseUrl)))
 }
 
 object Client {
