@@ -5,7 +5,7 @@ import java.nio.charset.Charset
 import featherbed.circe._
 import featherbed.content.Encoder
 
-import cats.data.{NonEmptyList, Xor}
+import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import com.twitter.finagle.{Service, SimpleFilter}
 import com.twitter.finagle.http.{Request, Response}
@@ -150,7 +150,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
             .accept("application/json")
 
           val result = Await.result(req.send[TestError, TestResponse]())
-          assert(result == Xor.Left(testError))
+          assert(result == Left(testError))
         }
       }
     }
@@ -213,7 +213,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
         .withContent(content, "test/content")
         .accept("application/json")
       val result = Await.result(req.send[TestError, TestResponse]())
-      assert(result == Xor.Right(testResponse))
+      assert(result == Right(testResponse))
     }
   }
 
@@ -234,7 +234,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
             .accept("application/json")
 
           val result = Await.result(req.sendZip[TestError, TestResponse]())
-          assert(result._1 == Xor.Left(testError))
+          assert(result._1 == Left(testError))
           assert(result._2.isInstanceOf[Response])
         }
       }
@@ -253,7 +253,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
         .withContent(content, "test/content")
         .accept("application/json")
       val result = Await.result(req.sendZip[TestError, TestResponse]())
-      assert(result._1 == Xor.Right(testResponse))
+      assert(result._1 == Right(testResponse))
       assert(result._2.isInstanceOf[Response])
     }
   }
