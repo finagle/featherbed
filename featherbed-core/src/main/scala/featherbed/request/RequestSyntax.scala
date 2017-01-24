@@ -6,7 +6,8 @@ import java.net.{URL, URLEncoder}
 import java.nio.charset.{Charset, StandardCharsets}
 import scala.language.experimental.macros
 
-import cats.data._, Xor._, Validated._
+import cats.data._, Validated._
+import cats.implicits._
 import cats.instances.list._
 import com.twitter.finagle.http._
 import com.twitter.finagle.http.Status._
@@ -98,18 +99,18 @@ trait RequestTypes { self: Client =>
         case MovedPermanently | Found | SeeOther | TemporaryRedirect =>
           val attempt = for {
             tooMany <- if (numRedirects > 5)
-                Xor.left("Too many redirects; giving up")
+                Left("Too many redirects; giving up")
               else
-                Xor.right(())
-            location <- Xor.fromOption(
+                Right(())
+            location <- Either.fromOption(
               rep.headerMap.get("Location"),
               "Redirect required, but location header not present")
-            newUrl <- Xor.catchNonFatal(url.toURI.resolve(location))
+            newUrl <- Either.catchNonFatal(url.toURI.resolve(location))
               .leftMap(_ => s"Could not resolve Location $location")
             canHandle <- if (newUrl.getHost != url.getHost)
-                Xor.left("Location points to another host; this isn't supported by featherbed")
+                Left("Location points to another host; this isn't supported by featherbed")
               else
-                Xor.right(())
+                Right(())
           } yield {
             val newReq = cloneRequest(request)
             newReq.uri = List(Option(newUrl.getPath), Option(newUrl.getQuery).map("?" + _)).flatten.mkString
@@ -175,12 +176,12 @@ trait RequestTypes { self: Client =>
       canBuild: CanBuildRequest[Self],
       decodeAllSuccess: DecodeAll[Success, Accept],
       decodeAllError: DecodeAll[Error, Accept]
-    ): Future[(Xor[Error, Success], Response)] = buildRequest match {
+    ): Future[(Either[Error, Success], Response)] = buildRequest match {
       case Valid(req) => handleRequest(req)
         .flatMap {
-          rep => decodeResponse[Success](rep).map(Xor.right[Error, Success]).map((_, rep))
+          rep => decodeResponse[Success](rep).map(Right[Error, Success]).map((_, rep))
         }.rescue {
-          case ErrorResponse(_, rep) => decodeResponse[Error](rep).map(Xor.left[Error, Success]).map((_, rep))
+          case ErrorResponse(_, rep) => decodeResponse[Error](rep).map(Left[Error, Success]).map((_, rep))
         }
       case Invalid(errs) => Future.exception(RequestBuildingError(errs))
     }
@@ -189,7 +190,7 @@ trait RequestTypes { self: Client =>
       canBuild: CanBuildRequest[Self],
       decodeAllSuccess: DecodeAll[Success, Accept],
       decodeAllError: DecodeAll[Error, Accept]
-    ): Future[Xor[Error, Success]] =
+    ): Future[Either[Error, Success]] =
       sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError).map(_._1)
 
   }
@@ -216,14 +217,14 @@ trait RequestTypes { self: Client =>
       canBuild: CanBuildRequest[GetRequest[Accept]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[Xor[Error, Success]] =
+    ): Future[Either[Error, Success]] =
       sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
 
     def sendZip[Error, Success]()(implicit
       canBuild: CanBuildRequest[GetRequest[Accept]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[(Xor[Error, Success], Response)] =
+    ): Future[(Either[Error, Success], Response)] =
       sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
@@ -256,7 +257,7 @@ trait RequestTypes { self: Client =>
     def withParams(
       first: (String, String),
       rest: (String, String)*
-    ): FormPostRequest[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
+    ): FormPostRequest[Accept, Right[Nothing, NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
       val firstElement = Valid(SimpleElement(first._1, first._2))
       val restElements = rest.toList.map {
         case (key, value) => Valid(SimpleElement(key, value))
@@ -272,7 +273,7 @@ trait RequestTypes { self: Client =>
     def addParams(
       first: (String, String),
       rest: (String, String)*
-    ): FormPostRequest[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
+    ): FormPostRequest[Accept, Right[Nothing, NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
       withParams(first, rest: _*)
     }
 
@@ -282,7 +283,7 @@ trait RequestTypes { self: Client =>
       contentType: ContentType,
       filename: Option[String] = None)(implicit
       encoder: Encoder[T, ContentType]
-    ): FormPostRequest[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
+    ): FormPostRequest[Accept, Right[Nothing, NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
       val element = encoder.apply(content, charset) map {
         buf => FileElement(name, buf, Some(contentType), filename)
       }
@@ -304,19 +305,19 @@ trait RequestTypes { self: Client =>
       canBuild: CanBuildRequest[PostRequest[Content, ContentType, Accept]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
+    ): Future[Either[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
 
     def sendZip[Error, Success]()(implicit
       canBuild: CanBuildRequest[PostRequest[Content, ContentType, Accept]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[(Xor[Error, Success], Response)] =
+    ): Future[(Either[Error, Success], Response)] =
       sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
   case class FormPostRequest[
     Accept <: Coproduct,
-    Elements <: Xor[None.type, NonEmptyList[ValidatedNel[Throwable, FormElement]]]
+    Elements <: Either[None.type, NonEmptyList[ValidatedNel[Throwable, FormElement]]]
   ] (
     url: URL,
     form: Elements = Left(None),
@@ -339,14 +340,14 @@ trait RequestTypes { self: Client =>
       copy(multipart = multipart)
 
     private[request] def withParamsList(params: NonEmptyList[ValidatedNel[Throwable, FormElement]]) =
-      copy[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]](
+      copy[Accept, Right[Nothing, NonEmptyList[ValidatedNel[Throwable, FormElement]]]](
         form = Right(params)
       )
 
     def withParams(
       first: (String, String),
       rest: (String, String)*
-    ): FormPostRequest[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
+    ): FormPostRequest[Accept, Right[Nothing, NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
       val firstElement = Valid(SimpleElement(first._1, first._2))
       val restElements = rest.toList.map {
         case (key, value) => Valid(SimpleElement(key, value))
@@ -357,7 +358,7 @@ trait RequestTypes { self: Client =>
     def addParams(
       first: (String, String),
       rest: (String, String)*
-    ): FormPostRequest[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
+    ): FormPostRequest[Accept, Right[Nothing, NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
       val firstElement = Valid(SimpleElement(first._1, first._2))
       val restElements = rest.toList.map {
         case (key, value) => Valid(SimpleElement(key, value)): ValidatedNel[Throwable, FormElement]
@@ -376,7 +377,7 @@ trait RequestTypes { self: Client =>
       contentType: ContentType,
       filename: Option[String] = None)(implicit
       encoder: Encoder[T, ContentType]
-    ): FormPostRequest[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
+    ): FormPostRequest[Accept, Right[Nothing, NonEmptyList[ValidatedNel[Throwable, FormElement]]]] = {
       val element = encoder.apply(content, charset) map {
         buf => FileElement(name, buf, Some(contentType), filename)
       }
@@ -392,13 +393,13 @@ trait RequestTypes { self: Client =>
       canBuild: CanBuildRequest[FormPostRequest[Accept, Elements]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
+    ): Future[Either[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
 
     def sendZip[Error, Success]()(implicit
       canBuild: CanBuildRequest[FormPostRequest[Accept, Elements]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[(Xor[Error, Success], Response)] =
+    ): Future[(Either[Error, Success], Response)] =
       sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
@@ -436,13 +437,13 @@ trait RequestTypes { self: Client =>
       canBuild: CanBuildRequest[PutRequest[Content, ContentType, Accept]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
+    ): Future[Either[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
 
     def sendZip[Error, Success]()(implicit
       canBuild: CanBuildRequest[PutRequest[Content, ContentType, Accept]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[(Xor[Error, Success], Response)] =
+    ): Future[(Either[Error, Success], Response)] =
       sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 
@@ -485,13 +486,13 @@ trait RequestTypes { self: Client =>
       canBuild: CanBuildRequest[DeleteRequest[Accept]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[Xor[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
+    ): Future[Either[Error, Success]] = sendRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
 
     def sendZip[Error, Success]()(implicit
       canBuild: CanBuildRequest[DeleteRequest[Accept]],
       decodeAllError: DecodeAll[Error, Accept],
       decodeAllSuccess: DecodeAll[Success, Accept]
-    ): Future[(Xor[Error, Success], Response)] =
+    ): Future[(Either[Error, Success], Response)] =
       sendZipRequest[Error, Success](canBuild, decodeAllSuccess, decodeAllError)
   }
 

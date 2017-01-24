@@ -6,7 +6,7 @@ import featherbed.Client
 import featherbed.content
 import featherbed.support.AcceptHeader
 
-import cats.data._, Xor._, Validated._
+import cats.data._, Validated._
 import com.twitter.finagle.http.{FormElement, Request, RequestBuilder}
 import com.twitter.finagle.http.RequestConfig.Yes
 import com.twitter.io.Buf
@@ -71,10 +71,10 @@ trait RequestBuilding {
     implicit def canBuildFormPostRequest[Accept <: Coproduct](
       implicit
       accept: AcceptHeader[Accept]
-    ): CanBuildRequest[FormPostRequest[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]]] =
-      new CanBuildRequest[FormPostRequest[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]]] {
+    ): CanBuildRequest[FormPostRequest[Accept, Right[Nothing, NonEmptyList[ValidatedNel[Throwable, FormElement]]]]] =
+      new CanBuildRequest[FormPostRequest[Accept, Right[Nothing, NonEmptyList[ValidatedNel[Throwable, FormElement]]]]] {
         def build(
-          formPostRequest: FormPostRequest[Accept, Right[NonEmptyList[ValidatedNel[Throwable, FormElement]]]]
+          formPostRequest: FormPostRequest[Accept, Right[Nothing, NonEmptyList[ValidatedNel[Throwable, FormElement]]]]
         ) = {
           formPostRequest.form match {
             case Right(elems) =>

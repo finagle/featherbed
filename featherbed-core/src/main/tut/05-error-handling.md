@@ -86,9 +86,8 @@ val req = client.get("not/found").accept("application/json")
 Await.result(req.send[Error, Foo])
 ```
 
-Instead of an exception, we're capturing the server errors in an `Xor[Error, Foo]`. `Xor` is another data type from
-cats, which captures failures in a similar way to `Validated`. This is a typical pattern in Scala functional programming
-for dealing with operations which may fail. The benefit is that the well-defined error type is also automatically
+Instead of an exception, we're capturing the server errors in an `Either[Error, Foo]`. This is a typical pattern in Scala functional
+programming for dealing with operations which may fail. The benefit is that the well-defined error type is also automatically
 decoded for us. However, if the error can't be decoded, this will still result in a failed `Future`, which fails on the
 decoding rather than the server error.
 
