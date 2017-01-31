@@ -2,16 +2,16 @@ package featherbed
 
 import java.nio.CharBuffer
 import java.nio.charset.{Charset, CodingErrorAction}
+
 import scala.util.Try
 
 import cats.data.{Validated, ValidatedNel}
 import com.twitter.finagle.http.Response
 import com.twitter.io.Buf
-import shapeless.Witness
+import shapeless.{CNil, Witness}
 import sun.nio.cs.ThreadLocalCoders
 
 package object content {
-  type ContentType = String
 
   trait Decoder[ContentType] {
     type Out
@@ -22,7 +22,7 @@ package object content {
   object Decoder extends LowPriorityDecoders {
     type Aux[CT, A1] = Decoder[CT] { type Out = A1 }
 
-    def of[T <: ContentType, A1](t: T)(fn: Response => ValidatedNel[Throwable, A1]): Decoder.Aux[t.type, A1] =
+    def of[T <: String, A1](t: T)(fn: Response => ValidatedNel[Throwable, A1]): Decoder.Aux[t.type, A1] =
       new Decoder[t.type] {
         type Out = A1
         val contentType = t
@@ -49,8 +49,10 @@ package object content {
       response => Decoder.decodeString(response)
     }
 
-    implicit val anyResponseDecoder: Decoder.Aux[Witness.`"*/*"`.T, Response] = Decoder.of("*/*") {
-      response => Validated.Valid(response)
+    implicit val anyResponseDecoder: Decoder.Aux[Nothing, Response] = new Decoder[Nothing] {
+      type Out = Response
+      final val contentType: String = "*/*"
+      final def apply(rep: Response): ValidatedNel[Throwable, Response] = Validated.Valid(rep)
     }
   }
 
@@ -59,7 +61,7 @@ package object content {
   }
 
   object Encoder extends LowPriorityEncoders {
-    def of[A, T <: ContentType](t: T)(fn: (A, Charset) => ValidatedNel[Throwable, Buf]): Encoder[A, t.type] =
+    def of[A, T <: String](t: T)(fn: (A, Charset) => ValidatedNel[Throwable, Buf]): Encoder[A, t.type] =
       new Encoder[A, t.type] {
         def apply(value: A, charset: Charset) = fn(value, charset)
       }

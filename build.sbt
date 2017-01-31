@@ -78,6 +78,15 @@ lazy val `featherbed-circe` = project
   .settings(allSettings)
   .dependsOn(`featherbed-core`)
 
+lazy val `featherbed-test` = project
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % "test",
+      "org.scalatest" %% "scalatest" % "3.0.0" % "test"
+    ),
+    buildSettings ++ noPublish
+  ).dependsOn(`featherbed-core`, `featherbed-circe`)
+
 val scaladocVersionPath = settingKey[String]("Path to this version's ScalaDoc")
 val scaladocLatestPath = settingKey[String]("Path to latest ScalaDoc")
 val tutPath = settingKey[String]("Path to tutorials")

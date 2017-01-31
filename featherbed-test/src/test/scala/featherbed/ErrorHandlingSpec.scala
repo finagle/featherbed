@@ -1,14 +1,21 @@
 package featherbed
 
+import java.nio.charset.Charset
+
+import featherbed.circe._
+import featherbed.content.Encoder
 import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated.{Invalid, Valid}
 import com.twitter.finagle.{Service, SimpleFilter}
-import com.twitter.finagle.http.{Request, Response}
+import com.twitter.finagle.http.{Method, Request, Response}
 import com.twitter.io.Buf
 import com.twitter.util.{Await, Future}
 import featherbed.content.{Decoder, Encoder}
 import featherbed.fixture.ClientTest
 import featherbed.request._
+import featherbed.request._
+import io.circe.generic.auto._
+import io.circe.syntax._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.FreeSpec
 import shapeless.Witness
