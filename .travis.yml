@@ -8,6 +8,7 @@ jdk:
 script:
   - sbt ++$TRAVIS_SCALA_VERSION validate
   - sbt ++$TRAVIS_SCALA_VERSION coverageAggregate
+  - sbt + package
 
 cache:
   directories:
