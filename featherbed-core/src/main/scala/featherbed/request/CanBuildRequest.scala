@@ -25,7 +25,7 @@ trait RequestBuilding {
     * @tparam T request type
     */
   @implicitNotFound(
-    """The request of type $T cannot be built.  This is most likely because either:
+    """The request of type ${T} cannot be built.  This is most likely because either:
     1. If the request is a POST, PUT, or PATCH request:
        a. The request requires a Content-Type to be defined, but one was not defined (using the withContent method)
        b. An Encoder is required for the request's Content-Type, but one was not available in implicit scope. This is
