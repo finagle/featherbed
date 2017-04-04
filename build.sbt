@@ -6,10 +6,11 @@ import com.typesafe.sbt.SbtGhPages.GhPagesKeys._
 lazy val buildSettings = Seq(
   organization := "io.github.finagle",
   version := "0.2.1-SNAPSHOT",
-  scalaVersion := "2.11.8"
+  scalaVersion := "2.12.1",
+  crossScalaVersions := Seq("2.11.8", "2.12.1")
 )
 
-val finagleVersion = "6.41.0"
+val finagleVersion = "6.42.0"
 val shapelessVersion = "2.3.2"
 val catsVersion = "0.9.0"
 
@@ -22,8 +23,8 @@ lazy val baseSettings = docSettings ++ Seq(
     "com.twitter" %% "finagle-http" % finagleVersion,
     "com.chuusai" %% "shapeless" % shapelessVersion,
     "org.typelevel" %% "cats" % catsVersion,
-    "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % "test",
-    "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % "test",
+    "org.scalatest" %% "scalatest" % "3.0.1" % "test"
   ),
   resolvers += Resolver.sonatypeRepo("snapshots")
 )
