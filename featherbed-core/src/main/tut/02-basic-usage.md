@@ -30,7 +30,8 @@ Create a `Client`, passing the base URL to the REST endpoints:
 
 ```tut:book
 import java.net.URL
-val client = new featherbed.Client(new URL("http://localhost:8765/api/"))
+import featherbed.Client
+val client = new Client(new URL("http://localhost:8765/api/"))
 ```
 *Note:* It is important to put a trailing slash on your URL.  This is because the resource path you'll pass in below
 is evaluated as a relative URL to the base URL given.  Without a trailing slash, the `api` directory above would be

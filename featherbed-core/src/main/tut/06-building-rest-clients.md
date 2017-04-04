@@ -21,6 +21,7 @@ case class Comment(postId: Int, id: Int, name: String, email: String, body: Stri
 We need the usual imports:
 
 ```tut:book
+import featherbed.Client
 import featherbed.circe._
 import io.circe.generic.auto._
 import shapeless.Coproduct
@@ -33,7 +34,7 @@ And we can define a class for our API client:
 ```tut:book
 class JSONPlaceholderAPI(baseUrl: URL) {
 
-  private val client = new featherbed.Client(baseUrl)
+  private val client = new Client(baseUrl)
 
   object posts {
 

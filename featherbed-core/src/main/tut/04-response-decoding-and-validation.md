@@ -50,7 +50,8 @@ val server = Http.serve(new InetSocketAddress(8767), new Service[Request, Respon
 })
 
 import java.net.URL
-val client = new featherbed.Client(new URL("http://localhost:8767/api/"))
+import featherbed.Client
+val client = new Client(new URL("http://localhost:8767/api/"))
 ```
 
 To specify that a response should be decoded, use the `send[T]` method to initiate the request:
