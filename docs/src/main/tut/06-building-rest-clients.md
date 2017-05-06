@@ -32,6 +32,8 @@ And we can define a class for our API client:
 
 ```tut:book
 class JSONPlaceholderAPI(baseUrl: URL) {
+  import featherbed.circe._
+  import io.circe.generic.auto._
 
   private val client = new featherbed.Client(baseUrl)
 
@@ -62,5 +64,3 @@ Await.result(apiClient.posts.get(1))
 
 
 ```
-
-
