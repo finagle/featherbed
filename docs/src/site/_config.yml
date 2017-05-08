@@ -7,7 +7,7 @@ baseurl:      "/featherbed"
 # About/contact
 author:
   name:       Jeremy Smith
-  url:        http://jeremyrsmith.github.io 
+  url:        http://jeremyrsmith.github.io
 
 # Gems
 gems:
@@ -22,4 +22,3 @@ kramdown:
   input: GFM
   syntax_highlighter: rouge
   highlighter: rouge
-
