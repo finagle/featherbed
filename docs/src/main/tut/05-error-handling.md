@@ -29,7 +29,7 @@ val server = Http.serve(new InetSocketAddress(8768), new Service[Request, Respon
     rep.contentType = "application/json"
     Future.value(rep)
   }
-  
+
   def apply(request: Request): Future[Response] = request.uri match {
     case "/api/success" => response(Status.Ok, """{"foo": "bar"}""")
     case "/api/not/found" => response(
