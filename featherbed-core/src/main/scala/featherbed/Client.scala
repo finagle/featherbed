@@ -5,7 +5,7 @@ import java.nio.charset.{Charset, StandardCharsets}
 
 import com.twitter.finagle._
 import com.twitter.finagle.builder.ClientBuilder
-import http.RequestBuilder
+import http.{Request, RequestBuilder, Response}
 import shapeless.Coproduct
 
 /**
@@ -78,7 +78,7 @@ class Client(
 
   protected def clientTransform(client: Http.Client): Http.Client = client
 
-  protected def serviceTransform[Req, Rep](service: Service[Req, Rep]): Service[Req, Rep] = service
+  protected def serviceTransform(service: Service[Request, Response]): Service[Request, Response] = service
 
   protected val client = clientTransform(Client.forUrl(baseUrl))
 
