@@ -1,7 +1,6 @@
 package featherbed.content
 
 import java.nio.charset.{Charset, CodingErrorAction}
-
 import scala.util.Try
 
 import cats.data.{Validated, ValidatedNel}

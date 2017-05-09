@@ -106,5 +106,4 @@ object CodecFilter {
     }
   }
 
-
 }

@@ -308,5 +308,4 @@ object ClientRequest extends RequestTypes[ClientRequest] {
     def apply(request: Unit, service: Service[None.type, Rep]): Future[Rep] = service(None)
   }
 
-
 }
