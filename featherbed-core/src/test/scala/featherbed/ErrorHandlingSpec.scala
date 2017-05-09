@@ -1,25 +1,17 @@
 package featherbed
 
-import java.nio.charset.Charset
-
-import featherbed.circe._
-import featherbed.content.Encoder
 import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated.{Invalid, Valid}
 import com.twitter.finagle.{Service, SimpleFilter}
-import com.twitter.finagle.http.{Method, Request, Response}
+import com.twitter.finagle.http.{Request, Response}
 import com.twitter.io.Buf
 import com.twitter.util.{Await, Future}
 import featherbed.content.{Decoder, Encoder}
 import featherbed.fixture.ClientTest
 import featherbed.request._
-import featherbed.request._
-import featherbed.support.DecodeAll
-import io.circe.generic.auto._
-import io.circe.syntax._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.FreeSpec
-import shapeless.{:+:, CNil, Witness}
+import shapeless.Witness
 
 class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
 
@@ -34,9 +26,9 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
   case object BadContent extends TestContent
 
   implicit val testContentEncoder: Encoder[TestContent, Witness.`"test/content"`.T] = Encoder.of("test/content") {
-    case (GoodContent, _) => Valid(Buf.Utf8("Good")).toValidatedNel
-    case (BadContent, _) => Invalid(NonEmptyList(new Exception("Bad"), Nil))
-  }
+      case (GoodContent, _) => Valid(Buf.Utf8("Good")).toValidatedNel
+      case (BadContent, _) => Invalid(NonEmptyList(new Exception("Bad"), Nil))
+    }
 
   case object DecodingError extends Throwable
 

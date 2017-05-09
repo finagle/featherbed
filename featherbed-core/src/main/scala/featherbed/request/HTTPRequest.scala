@@ -4,13 +4,13 @@ package request
 import java.io.File
 import java.net.{URI, URL, URLEncoder}
 import java.nio.charset.{Charset, StandardCharsets}
-
 import scala.language.experimental.macros
+
+import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.traverse._
-import cats.instances.list._
 import com.twitter.finagle.{Filter, Service, ServiceFactory}
-import com.twitter.finagle.http._
+import com.twitter.finagle.http.{Method => _, _}
 import com.twitter.finagle.http.Status.{NoContent => _, _}
 import com.twitter.util.Future
 import featherbed.content.{Form, MimeContent, MultipartForm, ToFormParam}
@@ -21,7 +21,7 @@ import featherbed.support.DecodeAll
 import shapeless._
 
 case class HTTPRequest[
-  Meth <: Method,
+  Meth <: String,
   Accept <: Coproduct,
   Content,
   ContentType
@@ -100,7 +100,7 @@ case class HTTPRequest[
 }
 
 object HTTPRequest extends RequestSyntax[HTTPRequest] with RequestTypes[HTTPRequest] {
-  def req[Meth <: Method, Accept <: Coproduct](
+  def req[Meth <: String, Accept <: Coproduct](
     method: Meth, url: URL,
     filters: Filter[Request, Response, Request, Response]
   ): HTTPRequest[Meth, Accept, None.type, None.type] = HTTPRequest(method, url, NoContent)
@@ -110,14 +110,14 @@ object HTTPRequest extends RequestSyntax[HTTPRequest] with RequestTypes[HTTPRequ
   ) extends AnyVal {
     def withContent[Content, ContentType <: String](content: Content, contentType: ContentType)(implicit
       witness: Witness.Aux[contentType.type]
-    ): PostRequest[Accept, Content, contentType.type] = req.copy[Method.Post.type, Accept, Content, contentType.type](
+    ): PostRequest[Accept, Content, contentType.type] = req.copy[Method.Post, Accept, Content, contentType.type](
       content = MimeContent[Content, contentType.type](content)
     )
 
     def withParams(
       first: (String, String),
       rest: (String, String)*
-    ): FormPostRequest[Accept, Form] = req.copy[Method.Post.type, Accept, Form, MimeContent.WebForm](
+    ): FormPostRequest[Accept, Form] = req.copy[Method.Post, Accept, Form, MimeContent.WebForm](
       content = MimeContent[Form, MimeContent.WebForm](
         Form(
           NonEmptyList(first, rest.toList)
@@ -149,13 +149,13 @@ object HTTPRequest extends RequestSyntax[HTTPRequest] with RequestTypes[HTTPRequ
           NonEmptyList(first, rest.toList).map((ToFormParam.file.apply _).tupled).sequenceU
         ))
       }
-      req.copy[Method.Post.type, Accept, MultipartForm, MimeContent.MultipartForm](
+      req.copy[Method.Post, Accept, MultipartForm, MimeContent.MultipartForm](
         content = newContent
       )
     }
 
     def toService[In, Out](contentType: String)(client: Client)(implicit
-      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Post.type, Accept, In, contentType.type]],
+      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Post, Accept, In, contentType.type]],
       decodeAll: DecodeAll[Out, Accept],
       witness: Witness.Aux[contentType.type]
     ): Service[In, Out] = Service.mk[In, Out] {
@@ -168,7 +168,7 @@ object HTTPRequest extends RequestSyntax[HTTPRequest] with RequestTypes[HTTPRequ
   ) extends AnyVal {
     def withContent[Content, ContentType <: String](content: Content, contentType: ContentType)(implicit
       witness: Witness.Aux[contentType.type]
-    ): PutRequest[Accept, Content, contentType.type] = req.copy[Method.Put.type, Accept, Content, contentType.type](
+    ): PutRequest[Accept, Content, contentType.type] = req.copy[Method.Put, Accept, Content, contentType.type](
       content = MimeContent[Content, contentType.type](content)
     )
   }

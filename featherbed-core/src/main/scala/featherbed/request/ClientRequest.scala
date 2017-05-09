@@ -1,12 +1,13 @@
-package featherbed.request
+package featherbed
+package request
 
 import java.net.URL
 import java.nio.charset.Charset
-
 import scala.language.experimental.macros
+
 import cats.syntax.either._
 import com.twitter.finagle.{Filter, Service}
-import com.twitter.finagle.http.{Method, Request, Response}
+import com.twitter.finagle.http.{Request, Response}
 import com.twitter.util.Future
 import featherbed.Client
 import featherbed.content.{Form, MimeContent, ToQueryParams}
@@ -20,7 +21,7 @@ import shapeless.ops.hlist.SelectAll
 /**
   * An [[HTTPRequest]] which is already paired with a [[Client]]
   */
-case class ClientRequest[Meth <: Method, Accept <: Coproduct, Content, ContentType](
+case class ClientRequest[Meth <: String, Accept <: Coproduct, Content, ContentType](
   request: HTTPRequest[Meth, Accept, Content, ContentType],
   client: Client
 ) {
@@ -136,7 +137,7 @@ case class ClientRequest[Meth <: Method, Accept <: Coproduct, Content, ContentTy
 
 object ClientRequest extends RequestTypes[ClientRequest] {
 
-  case class ContentToService[Meth <: Method, Accept <: Coproduct, Content, Result](
+  case class ContentToService[Meth <: String, Accept <: Coproduct, Content, Result](
     req: ClientRequest[Meth, Accept, None.type, None.type]
   ) extends AnyVal {
     def apply[ContentType <: String](contentType: Witness.Lt[ContentType])(implicit
@@ -152,7 +153,7 @@ object ClientRequest extends RequestTypes[ClientRequest] {
 
   class ClientRequestSyntax(client: Client) extends RequestSyntax[ClientRequest] with RequestTypes[ClientRequest] {
 
-    def req[Meth <: Method, Accept <: Coproduct](
+    def req[Meth <: String, Accept <: Coproduct](
       method: Meth, url: URL,
       filters: Filter[Request, Response, Request, Response]
     ): ClientRequest[Meth, Accept, None.type, None.type] =
@@ -197,7 +198,7 @@ object ClientRequest extends RequestTypes[ClientRequest] {
   implicit class PutToServiceOps[Accept <: Coproduct](
     val req: PutRequest[Accept, None.type, None.type]
   ) extends AnyVal {
-    def toService[In, Out]: ContentToService[Method.Put.type, Accept, In, Out] = ContentToService(req)
+    def toService[In, Out]: ContentToService[Method.Put, Accept, In, Out] = ContentToService(req)
   }
 
   case class PostMultipartFormToService[Accept <: Coproduct](
@@ -205,11 +206,11 @@ object ClientRequest extends RequestTypes[ClientRequest] {
   ) extends AnyVal {
     def toService[In, Out](implicit
       canBuildRequest: CanBuildRequest[
-        HTTPRequest[Method.Post.type, Accept, In, MimeContent.MultipartForm]
+        HTTPRequest[Method.Post, Accept, In, MimeContent.MultipartForm]
         ],
       decodeAll: DecodeAll[Out, Accept]
     ): Service[In, Out] =
-      ContentToService[Method.Post.type, Accept, In, Out](req)
+      ContentToService[Method.Post, Accept, In, Out](req)
         .apply("multipart/form-data")
   }
 
@@ -219,11 +220,11 @@ object ClientRequest extends RequestTypes[ClientRequest] {
   ) extends AnyVal {
     def toService[In, Out](implicit
       canBuildRequest: CanBuildRequest[
-          HTTPRequest[Method.Post.type, Accept, In, MimeContent.WebForm]
+          HTTPRequest[Method.Post, Accept, In, MimeContent.WebForm]
         ],
       decodeAll: DecodeAll[Out, Accept]
     ): Service[In, Out] =
-      ContentToService[Method.Post.type, Accept, In, Out](req)
+      ContentToService[Method.Post, Accept, In, Out](req)
         .apply("application/x-www-form-urlencoded")
 
     def multipart: PostMultipartFormToService[Accept] = PostMultipartFormToService(req)
@@ -232,7 +233,7 @@ object ClientRequest extends RequestTypes[ClientRequest] {
   implicit class PostToServiceOps[Accept <: Coproduct](
     val req: PostRequest[Accept, None.type, None.type]
   ) extends AnyVal {
-    def toService[In, Out]: ContentToService[Method.Post.type, Accept, In, Out] = ContentToService(req)
+    def toService[In, Out]: ContentToService[Method.Post, Accept, In, Out] = ContentToService(req)
     def form: PostFormToService[Accept] = PostFormToService(req)
   }
 
@@ -240,10 +241,10 @@ object ClientRequest extends RequestTypes[ClientRequest] {
     val req: GetRequest[Accept]
   ) extends AnyVal {
     def toService[Result](implicit
-      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Get.type, Accept, None.type, None.type]],
+      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Get, Accept, None.type, None.type]],
       decodeAll: DecodeAll[Result, Accept]
     ): () => Future[Result] = new Function0[Future[Result]] {
-      private val service = new CodecFilter[Method.Get.type, Accept, Request, None.type, Result](
+      private val service = new CodecFilter[Method.Get, Accept, Request, None.type, Result](
         req.request, req.client.maxFollows
       ) andThen req.client.httpClient
 
@@ -259,7 +260,7 @@ object ClientRequest extends RequestTypes[ClientRequest] {
     }
 
     def toService[Params, Result](implicit
-      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Get.type, Accept, None.type, None.type]],
+      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Get, Accept, None.type, None.type]],
       decodeAll: DecodeAll[Result, Accept],
       toQueryParams: ToQueryParams[Params]
     ): Service[Params, Result] = {
@@ -271,7 +272,7 @@ object ClientRequest extends RequestTypes[ClientRequest] {
             req => Future.value(req)
           )
         }
-      ) andThen new CodecFilter[Method.Get.type, Accept, Request, None.type, Result](
+      ) andThen new CodecFilter[Method.Get, Accept, Request, None.type, Result](
         req.request, req.client.maxFollows
       ) andThen req.client.httpClient
     }
@@ -279,20 +280,20 @@ object ClientRequest extends RequestTypes[ClientRequest] {
 
   implicit class HeadToServiceOps(val req: HeadRequest) extends AnyVal {
     def toService(implicit
-      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Head.type, CNil, None.type, None.type]]
+      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Head, CNil, None.type, None.type]]
     ): Service[Unit, Response] =
       new UnitToNone[Response] andThen
-      new CodecFilter[Method.Head.type, CNil, None.type, None.type, Response](
+      new CodecFilter[Method.Head, CNil, None.type, None.type, Response](
         req.request, req.client.maxFollows
       ) andThen req.client.httpClient
   }
 
   implicit class DeleteToServiceOps[Accept <: Coproduct](val req: DeleteRequest[Accept]) extends AnyVal {
     def toService[Result](implicit
-      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Delete.type, Accept, None.type, None.type]],
+      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Delete, Accept, None.type, None.type]],
       decodeAll: DecodeAll[Result, Accept]
     ): Service[Unit, Result] = new UnitToNone[Result] andThen
-      new CodecFilter[Method.Delete.type, Accept, None.type, None.type, Result](
+      new CodecFilter[Method.Delete, Accept, None.type, None.type, Result](
         req.request, req.client.maxFollows
       ) andThen req.client.httpClient
   }
@@ -300,7 +301,7 @@ object ClientRequest extends RequestTypes[ClientRequest] {
   implicit class PatchToServiceOps[Accept <: Coproduct](
     val req: PatchRequest[Accept, None.type, None.type]
   ) extends AnyVal {
-    def toService[In, Out]: ContentToService[Method.Patch.type, Accept, In, Out] = ContentToService(req)
+    def toService[In, Out]: ContentToService[Method.Patch, Accept, In, Out] = ContentToService(req)
   }
 
   private class UnitToNone[Rep] extends Filter[Unit, Rep, None.type, Rep] {

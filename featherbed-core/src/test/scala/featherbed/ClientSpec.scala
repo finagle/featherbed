@@ -3,9 +3,9 @@ package featherbed
 import java.nio.charset.Charset
 
 import com.twitter.finagle.{Service, SimpleFilter}
-import com.twitter.finagle.http.{Method, Request, Response}
+import com.twitter.finagle.http.{Request, Response}
 import com.twitter.util.{Await, Future}
-import featherbed.content.ToFormParams
+import featherbed.fixture.ClientTest
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.FreeSpec
 
@@ -37,7 +37,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
         receiver verify request {
           req =>
             assert(req.uri == "/api/v1/foo/bar")
-            assert(req.method == Method.Get)
+            assert(req.method.name == Method.Get)
             assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
         }
       }
@@ -54,7 +54,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
         receiver verify request {
           req =>
             assert(req.uri == "/api/v1/foo/bar")
-            assert(req.method == Method.Get)
+            assert(req.method.name == Method.Get)
             assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
         }
       }
@@ -77,7 +77,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
         receiver verify request {
           req =>
             assert(req.uri == "/api/v1/foo/bar?param=value")
-            assert(req.method == Method.Get)
+            assert(req.method.name == Method.Get)
             assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
         }
       }
@@ -102,7 +102,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
       receiver verify request {
         req =>
           assert(req.uri == "/api/v1/foo/bar?first=10&second=foo")
-          assert(req.method == Method.Get)
+          assert(req.method.name == Method.Get)
           assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
       }
     }
@@ -127,7 +127,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
         receiver verify request {
           req =>
             assert(req.uri == "/api/v1/foo/bar")
-            assert(req.method == Method.Post)
+            assert(req.method.name == Method.Post)
             assert(req.headerMap("Content-Type") == s"text/plain; charset=${Charset.defaultCharset.name}")
             assert(req.contentString == "Hello world")
             assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
@@ -147,7 +147,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
         receiver verify request {
           req =>
             assert(req.uri == "/api/v1/foo/bar")
-            assert(req.method == Method.Post)
+            assert(req.method.name == Method.Post)
             assert(req.headerMap("Content-Type") == s"text/plain; charset=${Charset.defaultCharset.name}")
             assert(req.contentString == "Hello world")
             assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
@@ -167,7 +167,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
         receiver verify request {
           req =>
             assert(req.uri == "/api/v1/foo/bar")
-            assert(req.method == Method.Post)
+            assert(req.method.name == Method.Post)
             assert(req.headerMap("Content-Type") == s"application/x-www-form-urlencoded")
             assert(req.contentString == "foo=bar&bar=baz")
             assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
@@ -189,7 +189,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
           receiver verify request {
             req =>
               assert(req.uri == "/api/v1/foo/bar")
-              assert(req.method == Method.Post)
+              assert(req.method.name == Method.Post)
               assert(req.headerMap("Content-Type") == s"application/x-www-form-urlencoded")
               assert(req.contentString == "foo=bar&bar=baz")
               assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
@@ -209,7 +209,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
       receiver verify request {
         req =>
           assert(req.uri == "/api/v1/foo/bar")
-          assert(req.method == Method.Head)
+          assert(req.method.name == Method.Head)
       }
     }
 
@@ -220,7 +220,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
       receiver verify request {
         req =>
           assert(req.uri == "/api/v1/foo/bar")
-          assert(req.method == Method.Head)
+          assert(req.method.name == Method.Head)
       }
     }
   }
@@ -236,7 +236,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
       receiver verify request {
         req =>
           assert(req.uri == "/api/v1/foo/bar")
-          assert(req.method == Method.Delete)
+          assert(req.method.name == Method.Delete)
       }
     }
 
@@ -247,7 +247,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
       receiver verify request {
         req =>
           assert(req.uri == "/api/v1/foo/bar")
-          assert(req.method == Method.Delete)
+          assert(req.method.name == Method.Delete)
       }
     }
   }
@@ -264,7 +264,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
       receiver verify request {
         req =>
           assert(req.uri == "/api/v1/foo/bar")
-          assert(req.method == Method.Put)
+          assert(req.method.name == Method.Put)
           assert(req.contentType.contains(s"text/plain; charset=${Charset.defaultCharset.name}"))
           assert(req.contentString == "Hello world")
       }
@@ -276,7 +276,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
       receiver verify request {
         req =>
           assert(req.uri == "/api/v1/foo/bar")
-          assert(req.method == Method.Put)
+          assert(req.method.name == Method.Put)
           assert(req.contentType.contains(s"text/plain; charset=${Charset.defaultCharset.name}"))
           assert(req.contentString == "Hello world")
       }
@@ -294,7 +294,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
-      assert(req.method == Method.Get)
+      assert(req.method.name == Method.Get)
       assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
     }
   }
@@ -312,7 +312,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar?param=value")
-      assert(req.method == Method.Get)
+      assert(req.method.name == Method.Get)
       assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
     }
   }
@@ -329,7 +329,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
-      assert(req.method == Method.Post)
+      assert(req.method.name == Method.Post)
       assert(req.headerMap("Content-Type") == s"text/plain; charset=${Charset.defaultCharset.name}")
       assert(req.contentString == "Hello world")
       assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
@@ -346,7 +346,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
-      assert(req.method == Method.Post)
+      assert(req.method.name == Method.Post)
       assert(req.headerMap("Content-Type") == s"application/x-www-form-urlencoded")
       assert(req.contentString == "foo=bar&bar=baz")
       assert((req.accept.toSet diff Set("text/plain", "*/*; q=0")) == Set.empty)
@@ -362,7 +362,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
-      assert(req.method == Method.Delete)
+      assert(req.method.name == Method.Delete)
     }
   }
 
@@ -376,7 +376,7 @@ class ClientSpec extends FreeSpec with MockFactory with ClientTest {
 
     receiver verify request { req =>
       assert(req.uri == "/api/v1/foo/bar")
-      assert(req.method == Method.Put)
+      assert(req.method.name == Method.Put)
       assert(req.contentType.contains(s"text/plain; charset=${Charset.defaultCharset.name}"))
       assert(req.contentString == "Hello world")
     }

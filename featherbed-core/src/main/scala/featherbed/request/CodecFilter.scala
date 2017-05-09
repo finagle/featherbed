@@ -1,18 +1,19 @@
-package featherbed.request
+package featherbed
+package request
 
 import java.net.URL
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.either._
 import com.twitter.finagle.{Filter, Service}
-import com.twitter.finagle.http.{Method, Request, Response}
+import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finagle.http.Status._
 import com.twitter.util.Future
 import featherbed.content.MimeContent
 import featherbed.support.{ContentType, DecodeAll, RuntimeContentType}
 import shapeless.{Coproduct, Witness}
 
-class CodecFilter[Meth <: Method, Accept <: Coproduct, Content, ContentType, Result](
+class CodecFilter[Meth <: String, Accept <: Coproduct, Content, ContentType, Result](
   request: HTTPRequest[Meth, Accept, None.type, ContentType],
   maxFollows: Int)(implicit
   canBuildRequest: CanBuildRequest[HTTPRequest[Meth, Accept, Content, ContentType]],

@@ -1,10 +1,12 @@
-package featherbed.request
+package featherbed
+package request
 
 import scala.annotation.implicitNotFound
+
 import cats.data._
 import cats.data.Validated._
 import cats.implicits._
-import com.twitter.finagle.http.{FormElement, Method, Request, RequestBuilder}
+import com.twitter.finagle.http.{FormElement, Request, RequestBuilder}
 import com.twitter.finagle.http.RequestConfig.Yes
 import com.twitter.io.Buf
 import featherbed.Client
@@ -148,7 +150,7 @@ object CanBuildRequest {
     }
 
   implicit def canBuildDefinedRequest[
-    Meth <: Method,
+    Meth <: String,
     Accept <: Coproduct
   ]: CanBuildRequest[HTTPRequest[Meth, Accept, Request, None.type]] =
     new CanBuildRequest[HTTPRequest[Meth, Accept, Request, None.type]] {
