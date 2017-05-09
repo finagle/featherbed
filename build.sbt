@@ -3,14 +3,16 @@ name := "featherbed"
 import sbtunidoc.Plugin.UnidocKeys._
 import com.typesafe.sbt.SbtGhPages.GhPagesKeys._
 
+enablePlugins(TutPlugin)
+
 lazy val buildSettings = Seq(
   organization := "io.github.finagle",
   version := "0.2.1-SNAPSHOT",
-  scalaVersion := "2.12.1",
-  crossScalaVersions := Seq("2.11.8", "2.12.1")
+  scalaVersion := "2.12.2",
+  crossScalaVersions := Seq("2.11.11", "2.12.2")
 )
 
-val finagleVersion = "6.42.0"
+val finagleVersion = "6.43.0"
 val shapelessVersion = "2.3.2"
 val catsVersion = "0.9.0"
 
@@ -23,10 +25,12 @@ lazy val baseSettings = docSettings ++ Seq(
     "com.twitter" %% "finagle-http" % finagleVersion,
     "com.chuusai" %% "shapeless" % shapelessVersion,
     "org.typelevel" %% "cats" % catsVersion,
-    "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % "test",
-    "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
+    "org.scalatest" %% "scalatest" % "3.0.3" % "test"
   ),
-  resolvers += Resolver.sonatypeRepo("snapshots")
+  resolvers += Resolver.sonatypeRepo("snapshots"),
+  dependencyUpdatesFailBuild := true,
+  dependencyUpdatesExclusions := moduleFilter("org.scala-lang")
 )
 
 lazy val publishSettings = Seq(
@@ -50,13 +54,13 @@ lazy val publishSettings = Seq(
     )
   ),
   pomExtra :=
-    <developers>
-      <developer>
-        <id>jeremyrsmith</id>
-        <name>Jeremy Smith</name>
-        <url>https://github.com/jeremyrsmith</url>
-      </developer>
-    </developers>
+      <developers>
+        <developer>
+          <id>jeremyrsmith</id>
+          <name>Jeremy Smith</name>
+          <url>https://github.com/jeremyrsmith</url>
+        </developer>
+      </developers>
 )
 
 lazy val noPublish = Seq(
@@ -68,11 +72,11 @@ lazy val noPublish = Seq(
 lazy val allSettings = publishSettings ++ baseSettings ++ buildSettings
 
 lazy val `featherbed-core` = project
-  .settings(allSettings ++ tutSettings)
+    .settings(allSettings)
 
 lazy val `featherbed-circe` = project
-  .settings(allSettings)
-  .dependsOn(`featherbed-core`)
+    .settings(allSettings)
+    .dependsOn(`featherbed-core`)
 
 val scaladocVersionPath = settingKey[String]("Path to this version's ScalaDoc")
 val scaladocLatestPath = settingKey[String]("Path to latest ScalaDoc")
@@ -85,35 +89,42 @@ lazy val docs: Project = project
         scaladocLatestPath := (if (isSnapshot.value) "api/latest-snapshot" else "api/latest"),
         tutPath := "doc",
         includeFilter in makeSite := (includeFilter in makeSite).value || "*.md" || "*.yml",
-        addMappingsToSiteDir(tut in `featherbed-core`, tutPath),
+        addMappingsToSiteDir(tut, tutPath),
         addMappingsToSiteDir(mappings in (featherbed, ScalaUnidoc, packageDoc), scaladocLatestPath),
         addMappingsToSiteDir(mappings in (featherbed, ScalaUnidoc, packageDoc), scaladocVersionPath),
         ghpagesNoJekyll := false,
-        git.remoteRepo := "git@github.com:finagle/featherbed"
+        git.remoteRepo := "git@github.com:finagle/featherbed",
+        scalacOptions in Tut := (
+            CrossVersion.partialVersion(scalaVersion.value) match {
+              case Some((2, p)) if p >= 12 => Seq("-Yrepl-class-based")
+              case _ => Nil
+            }
+            )
       )
     ).dependsOn(`featherbed-core`, `featherbed-circe`)
 
 
 lazy val featherbed = project
-  .in(file("."))
-  .settings(unidocSettings ++ tutSettings ++ baseSettings ++ buildSettings)
-  .aggregate(`featherbed-core`, `featherbed-circe`)
-  .dependsOn(`featherbed-core`, `featherbed-circe`)
-  .settings(
-    initialCommands in console :=
-      """
-          |import com.twitter.util.{Await, Future}
-          |import com.twitter.finagle.{Service, Http}
-          |import com.twitter.finagle.http.{Request, Response, Method}
-          |import java.net.{InetSocketAddress, URL}
-          |import shapeless.Coproduct
-          |import featherbed._
-          |import featherbed.circe._
-          |import io.circe.generic.auto._
-      """.stripMargin
-  )
+    .in(file("."))
+    .settings(unidocSettings ++ baseSettings ++ buildSettings)
+    .aggregate(`featherbed-core`, `featherbed-circe`)
+    .dependsOn(`featherbed-core`, `featherbed-circe`)
+    .settings(
+      initialCommands in console :=
+          """
+            |import com.twitter.util.{Await, Future}
+            |import com.twitter.finagle.{Service, Http}
+            |import com.twitter.finagle.http.{Request, Response, Method}
+            |import java.net.{InetSocketAddress, URL}
+            |import shapeless.Coproduct
+            |import featherbed._
+            |import featherbed.circe._
+            |import io.circe.generic.auto._
+          """.stripMargin
+    )
 
 val validateCommands = List(
+  "dependencyUpdates",
   "clean",
   "scalastyle",
   "test:scalastyle",
@@ -121,7 +132,7 @@ val validateCommands = List(
   "test:compile",
   "coverage",
   "test",
-  "tut",
+  "docs/tut",
   "coverageReport"
 )
 addCommandAlias("validate", validateCommands.mkString(";", ";", ""))
