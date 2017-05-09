@@ -1,6 +1,7 @@
 package featherbed.circe
 
 import cats.implicits._
+import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax._
 import cats.implicits._

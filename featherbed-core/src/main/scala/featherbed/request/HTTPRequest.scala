@@ -1,17 +1,19 @@
 package featherbed
 package request
 
-import java.net.{URL, URLEncoder}
+import java.io.File
+import java.net.{URI, URL, URLEncoder}
 import java.nio.charset.{Charset, StandardCharsets}
 
 import scala.language.experimental.macros
-
 import cats.syntax.either._
+import cats.syntax.traverse._
+import cats.instances.list._
 import com.twitter.finagle.{Filter, Service, ServiceFactory}
-import com.twitter.finagle.http.{Method, Request, Response, SimpleElement}
+import com.twitter.finagle.http._
 import com.twitter.finagle.http.Status.{NoContent => _, _}
 import com.twitter.util.Future
-import featherbed.content.{Form, MimeContent, MultipartForm}
+import featherbed.content.{Form, MimeContent, MultipartForm, ToFormParam}
 import MimeContent.NoContent
 import cats.data.{NonEmptyList, Validated}
 import featherbed.littlemacros.CoproductMacros
@@ -37,7 +39,7 @@ case class HTTPRequest[
     copy[Meth, A, Content, ContentType]()
 
   def accept[A <: Coproduct](types: String*): HTTPRequest[Meth, A, Content, ContentType] =
-    macro CoproductMacros.callAcceptCoproduct
+    macro CoproductMacros.callAcceptCoproduct[A]
 
   def withCharset(charset: Charset): HTTPRequest[Meth, Accept, Content, ContentType] =
     copy(charset = charset)
@@ -88,7 +90,12 @@ case class HTTPRequest[
   ): HTTPRequest[Meth, Accept, Content, ContentType] = addQueryParams(params.toList)
 
 
-  def buildUrl: URL = query.map(q => new URL(url, "?" + q)).getOrElse(url)
+  def buildUrl: URL = {
+    val uri = url.toURI
+    query.map {
+      q => new URI(uri.getScheme, uri.getUserInfo, uri.getHost, uri.getPort, uri.getPath, q, uri.getFragment).toURL
+    }.getOrElse(url)
+  }
 
 }
 
@@ -110,15 +117,42 @@ object HTTPRequest extends RequestSyntax[HTTPRequest] with RequestTypes[HTTPRequ
     def withParams(
       first: (String, String),
       rest: (String, String)*
-    ): FormPostRequest[Accept] = req.copy[Method.Post.type, Accept, Form, MimeContent.WebForm](
+    ): FormPostRequest[Accept, Form] = req.copy[Method.Post.type, Accept, Form, MimeContent.WebForm](
       content = MimeContent[Form, MimeContent.WebForm](
         Form(
           NonEmptyList(first, rest.toList)
             .map((SimpleElement.apply _).tupled)
-            .map(Validated.valid)
         )
       )
     )
+
+    def withFiles(
+      first: (String, File),
+      rest: (String, File)*
+    ): MultipartFormRequest[Accept, MultipartForm] = {
+      val newContent = req.content match {
+        case MimeContent(Form(existing), _) => MimeContent[MultipartForm, MimeContent.MultipartForm](
+          MultipartForm(
+            NonEmptyList(first, rest.toList).map((ToFormParam.file.apply _).tupled).sequenceU map {
+              validFiles => validFiles ++ existing.toList
+            }
+          )
+        )
+        case MimeContent(MultipartForm(existing), _) => MimeContent[MultipartForm, MimeContent.MultipartForm](
+          MultipartForm(
+            NonEmptyList(first, rest.toList).map((ToFormParam.file.apply _).tupled).sequenceU andThen {
+              validFiles => existing map (validFiles ++ _.toList)
+            }
+          )
+        )
+        case _ => MimeContent[MultipartForm, MimeContent.MultipartForm](MultipartForm(
+          NonEmptyList(first, rest.toList).map((ToFormParam.file.apply _).tupled).sequenceU
+        ))
+      }
+      req.copy[Method.Post.type, Accept, MultipartForm, MimeContent.MultipartForm](
+        content = newContent
+      )
+    }
 
     def toService[In, Out](contentType: String)(client: Client)(implicit
       canBuildRequest: CanBuildRequest[HTTPRequest[Method.Post.type, Accept, In, contentType.type]],

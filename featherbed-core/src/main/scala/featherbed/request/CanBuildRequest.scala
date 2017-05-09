@@ -1,16 +1,15 @@
 package featherbed.request
 
 import scala.annotation.implicitNotFound
-
 import cats.data._
 import cats.data.Validated._
 import cats.implicits._
-import com.twitter.finagle.http.{FormElement, Request, RequestBuilder}
+import com.twitter.finagle.http.{FormElement, Method, Request, RequestBuilder}
 import com.twitter.finagle.http.RequestConfig.Yes
 import com.twitter.io.Buf
 import featherbed.Client
 import featherbed.content
-import featherbed.content.{Form, MultipartForm}
+import featherbed.content.{Form, MultipartForm, ToFormParams}
 import featherbed.support.AcceptHeader
 import shapeless.{Coproduct, Witness}
 
@@ -39,9 +38,8 @@ object CanBuildRequest {
 
 
   private def baseBuilder[Accept <: Coproduct](
-    request: HTTPRequest[_, Accept, _, _]
-  )(
-    implicit accept: AcceptHeader[Accept]
+    request: HTTPRequest[_, Accept, _, _])(implicit
+    accept: AcceptHeader[Accept]
   ): RequestBuilder[Yes, Nothing] = {
     val builder = RequestBuilder().url(request.buildUrl).addHeader("Accept", accept.toString)
     request.headers.foldLeft(builder) {
@@ -70,41 +68,27 @@ object CanBuildRequest {
       )
     }
 
-  implicit def canBuildFormPostRequest[Accept <: Coproduct](implicit
-    accept: AcceptHeader[Accept]
-  ): CanBuildRequest[HTTPRequest.FormPostRequest[Accept]] =
-    new CanBuildRequest[HTTPRequest.FormPostRequest[Accept]] {
+  implicit def canBuildFormPostRequest[Accept <: Coproduct, Content](implicit
+    accept: AcceptHeader[Accept],
+    toFormParams: ToFormParams[Content]
+  ): CanBuildRequest[HTTPRequest.FormPostRequest[Accept, Content]] =
+    new CanBuildRequest[HTTPRequest.FormPostRequest[Accept, Content]] {
       def build(
-        formPostRequest: HTTPRequest.FormPostRequest[Accept]
-      ): Validated[NonEmptyList[Throwable], Request] = {
-        formPostRequest.content.content match {
-          case Form(elems) =>
-            val validated = elems.traverseU(_.toValidatedNel)
-
-            // Finagle takes care of Content-Type header
-            validated.map {
-              elems => baseBuilder(formPostRequest).add(elems.toList).buildFormPost(multipart = false)
-            }
-        }
+        formPostRequest: HTTPRequest.FormPostRequest[Accept, Content]
+      ): Validated[NonEmptyList[Throwable], Request] = toFormParams(formPostRequest.content.content).map {
+        elems => baseBuilder(formPostRequest).add(elems).buildFormPost(multipart = false)
       }
     }
 
-  implicit def canBuildMultipartFormPostRequest[Accept <: Coproduct](implicit
-    accept: AcceptHeader[Accept]
-  ): CanBuildRequest[HTTPRequest.MultipartFormRequest[Accept]] =
-    new CanBuildRequest[HTTPRequest.MultipartFormRequest[Accept]] {
+  implicit def canBuildMultipartFormPostRequest[Accept <: Coproduct, Content](implicit
+    accept: AcceptHeader[Accept],
+    toFormParams: ToFormParams[Content]
+  ): CanBuildRequest[HTTPRequest.MultipartFormRequest[Accept, Content]] =
+    new CanBuildRequest[HTTPRequest.MultipartFormRequest[Accept, Content]] {
       def build(
-        formPostRequest: HTTPRequest.MultipartFormRequest[Accept]
-      ): Validated[NonEmptyList[Throwable], Request] = {
-        formPostRequest.content.content match {
-          case MultipartForm(elems) =>
-            val validated = elems.traverseU(_.toValidatedNel)
-
-            // Finagle takes care of Content-Type header
-            validated.map {
-              elems => baseBuilder(formPostRequest).add(elems.toList).buildFormPost(multipart = false)
-            }
-        }
+        formPostRequest: HTTPRequest.MultipartFormRequest[Accept, Content]
+      ): Validated[NonEmptyList[Throwable], Request] = toFormParams(formPostRequest.content.content).map {
+        elems => baseBuilder(formPostRequest).add(elems).buildFormPost(multipart = true)
       }
     }
 
@@ -161,6 +145,14 @@ object CanBuildRequest {
             .addHeader("Content-Type", s"${witness.value}; charset=${putRequest.charset.name}")
             .buildPut(buf)
         }
+    }
+
+  implicit def canBuildDefinedRequest[
+    Meth <: Method,
+    Accept <: Coproduct
+  ]: CanBuildRequest[HTTPRequest[Meth, Accept, Request, None.type]] =
+    new CanBuildRequest[HTTPRequest[Meth, Accept, Request, None.type]] {
+      def build(req: HTTPRequest[Meth, Accept, Request, None.type]) = Validated.valid(req.content.content)
     }
 }
 

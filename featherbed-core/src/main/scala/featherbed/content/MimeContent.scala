@@ -7,7 +7,8 @@ case class MimeContent[Content, ContentType](content: Content, contentType: Cont
 
 object MimeContent {
   type WebForm = Witness.`"application/x-www-form-urlencoded"`.T
-  type Json    = Witness.`"application/json"`.T
+  type MultipartForm = Witness.`"multipart/form-data"`.T
+  type Json = Witness.`"application/json"`.T
   val NoContent: MimeContent[None.type, None.type] = MimeContent(None, None)
 
   def apply[Content, ContentType](content: Content)(implicit

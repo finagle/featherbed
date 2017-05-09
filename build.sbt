@@ -28,9 +28,7 @@ lazy val baseSettings = docSettings ++ Seq(
     "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
     "org.scalatest" %% "scalatest" % "3.0.3" % "test"
   ),
-  resolvers += Resolver.sonatypeRepo("snapshots"),
-  dependencyUpdatesFailBuild := false,
-  dependencyUpdatesExclusions := moduleFilter("org.scala-lang")
+  resolvers += Resolver.sonatypeRepo("snapshots")
 )
 
 lazy val publishSettings = Seq(
@@ -75,8 +73,14 @@ lazy val `featherbed-core` = project
   .settings(allSettings)
 
 lazy val `featherbed-circe` = project
-  .settings(allSettings)
-  .dependsOn(`featherbed-core`)
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.circe" %% "circe-core" % circeVersion,
+      "io.circe" %% "circe-parser" % circeVersion,
+      "io.circe" %% "circe-generic" % circeVersion
+    ),
+    allSettings
+  ).dependsOn(`featherbed-core`)
 
 lazy val `featherbed-test` = project
   .settings(

@@ -1,10 +1,10 @@
 package featherbed.content
 
-import cats.data.{NonEmptyList, Validated}
+import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import com.twitter.finagle.http.FormElement
 
-case class Form(params: NonEmptyList[Validated[Throwable, FormElement]]) {
-  def multipart: MultipartForm = MultipartForm(params)
+case class Form(params: NonEmptyList[FormElement]) {
+  def multipart: MultipartForm = MultipartForm(Validated.valid(params))
 }
 
-case class MultipartForm(params: NonEmptyList[Validated[Throwable, FormElement]])
+case class MultipartForm(params: ValidatedNel[Throwable, NonEmptyList[FormElement]])

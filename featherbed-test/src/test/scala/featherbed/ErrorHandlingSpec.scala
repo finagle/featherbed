@@ -14,11 +14,12 @@ import featherbed.content.{Decoder, Encoder}
 import featherbed.fixture.ClientTest
 import featherbed.request._
 import featherbed.request._
+import featherbed.support.DecodeAll
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.FreeSpec
-import shapeless.Witness
+import shapeless.{:+:, CNil, Witness}
 
 class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
 

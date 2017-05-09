@@ -4,20 +4,22 @@ import java.net.URL
 import java.nio.charset.Charset
 
 import scala.language.experimental.macros
-
-import cats.data.Validated.{Invalid, Valid}
-import cats.data.ValidatedNel
-import cats.implicits._
+import cats.syntax.either._
 import com.twitter.finagle.{Filter, Service}
 import com.twitter.finagle.http.{Method, Request, Response}
-import com.twitter.finagle.http.Status._
 import com.twitter.util.Future
 import featherbed.Client
-import featherbed.content.{Form, MimeContent, MultipartForm}
-import featherbed.littlemacros.CoproductMacros
-import featherbed.support.{ContentType, DecodeAll, RuntimeContentType}
-import shapeless.{CNil, Coproduct, HList, Witness}
+import featherbed.content.{Form, MimeContent, ToQueryParams}
+import featherbed.littlemacros._
+import featherbed.support.DecodeAll
+import shapeless._
+import shapeless.labelled.FieldType
+import shapeless.ops.hlist.SelectAll
 
+
+/**
+  * An [[HTTPRequest]] which is already paired with a [[Client]]
+  */
 case class ClientRequest[Meth <: Method, Accept <: Coproduct, Content, ContentType](
   request: HTTPRequest[Meth, Accept, Content, ContentType],
   client: Client
@@ -26,8 +28,21 @@ case class ClientRequest[Meth <: Method, Accept <: Coproduct, Content, ContentTy
   def accept[A <: Coproduct]: ClientRequest[Meth, A, Content, ContentType] =
     copy[Meth, A, Content, ContentType](request = request.accept[A])
 
-  def accept[A <: Coproduct](types: String*): ClientRequest[Meth, A, Content, ContentType] =
-    macro CoproductMacros.callAcceptCoproduct
+  def accept(mimeType: Witness.Lt[String]): ClientRequest[Meth, mimeType.T :+: CNil, Content, ContentType] =
+    accept[mimeType.T :+: CNil]
+
+  def accept(
+    mimeTypeA: Witness.Lt[String],
+    mimeTypeB: Witness.Lt[String]
+  ): ClientRequest[Meth, mimeTypeA.T :+: mimeTypeB.T :+: CNil, Content, ContentType] =
+    accept[mimeTypeA.T :+: mimeTypeB.T :+: CNil]
+
+  def accept(
+    mimeTypeA: Witness.Lt[String],
+    mimeTypeB: Witness.Lt[String],
+    mimeTypeC: Witness.Lt[String]
+  ): ClientRequest[Meth, mimeTypeA.T :+: mimeTypeB.T :+: mimeTypeC.T :+: CNil, Content, ContentType] =
+    accept[mimeTypeA.T :+: mimeTypeB.T :+: mimeTypeC.T :+: CNil]
 
   def withCharset(charset: Charset): ClientRequest[Meth, Accept, Content, ContentType] =
     copy(request = request.withCharset(charset))
@@ -86,17 +101,17 @@ case class ClientRequest[Meth <: Method, Accept <: Coproduct, Content, ContentTy
     canBuildRequest: CanBuildRequest[HTTPRequest[Meth, Accept, Content, ContentType]],
     decodeAll: DecodeAll[K, Accept]
   ): Future[K] = sendValid().flatMap {
-    response => decodeResponse[K](response)
+    response => CodecFilter.decodeResponse[K, Accept](response)
   }
 
-  def send[E, S](implicit
+  def send[E, S]()(implicit
     canBuildRequest: CanBuildRequest[HTTPRequest[Meth, Accept, Content, ContentType]],
     decodeSuccess: DecodeAll[S, Accept],
     decodeError: DecodeAll[E, Accept]
   ): Future[Either[E, S]] = sendValid().flatMap {
-    rep => decodeResponse[S](rep).map(Either.right[E, S])
+    rep => CodecFilter.decodeResponse[S, Accept](rep).map(Either.right[E, S])
   }.rescue {
-    case ErrorResponse(_, rep) => decodeResponse[E](rep).map(Either.left[E, S])
+    case ErrorResponse(_, rep) => CodecFilter.decodeResponse[E, Accept](rep).map(Either.left[E, S])
   }
 
   def sendZip[E, S]()(implicit
@@ -104,87 +119,36 @@ case class ClientRequest[Meth <: Method, Accept <: Coproduct, Content, ContentTy
     decodeSuccess: DecodeAll[S, Accept],
     decodeError: DecodeAll[E, Accept]
   ): Future[(Either[E, S], Response)] = sendValid().flatMap {
-     rep => decodeResponse[S](rep).map(Either.right[E, S]).map((_, rep))
+     rep => CodecFilter.decodeResponse[S, Accept](rep).map(Either.right[E, S]).map((_, rep))
    }.rescue {
-     case ErrorResponse(_, rep) => decodeResponse[E](rep).map(Either.left[E, S]).map((_, rep))
+     case ErrorResponse(_, rep) => CodecFilter.decodeResponse[E, Accept](rep).map(Either.left[E, S]).map((_, rep))
    }
 
   private def sendValid()(implicit
     canBuildRequest: CanBuildRequest[HTTPRequest[Meth, Accept, Content, ContentType]]
   ): Future[Response] = canBuildRequest.build(request).fold(
-    errs => Future.exception(errs.head),
-    req => handleRequest(() => req, request.filters, request.buildUrl, client.httpClient, client.maxFollows)
+    errs => Future.exception(RequestBuildingError(errs)),
+    req => CodecFilter.handleRequest(() => req, request.filters, request.buildUrl, client.httpClient, client.maxFollows)
   )
 
-  private def decodeResponse[K](rep: Response)(implicit decodeAll: DecodeAll[K, Accept]) =
-    rep.contentType flatMap ContentType.contentTypePieces match {
-      case None => Future.exception(InvalidResponse(rep, "Content-Type header is not present"))
-      case Some(RuntimeContentType(mediaType, _)) => decodeAll.instances.find(_.contentType == mediaType) match {
-        case Some(decoder) =>
-          decoder(rep) match {
-            case Valid(decoded) =>
-              Future(decoded)
-            case Invalid(errs) =>
-              Future.exception(InvalidResponse(rep, errs.map(_.getMessage).toList.mkString("; ")))
-          }
-        case None =>
-          Future.exception(InvalidResponse(rep, s"No decoder was found for $mediaType"))
-      }
-    }
-
-  private def handleRequest(
-    request: () => Request,
-    filters: Filter[Request, Response, Request, Response],
-    url: URL,
-    httpClient: Service[Request, Response],
-    remainingRedirects: Int
-  ): Future[Response] = {
-    val req = request()
-    (filters andThen httpClient) (req) flatMap {
-      rep =>
-        rep.status match {
-          case Continue =>
-            Future.exception(InvalidResponse(
-              rep,
-              "Received unexpected 100/Continue, but request body was already sent."
-            ))
-          case SwitchingProtocols => Future.exception(InvalidResponse(
-            rep,
-            "Received unexpected 101/Switching Protocols, but no switch was requested."
-          ))
-          case s if s.code >= 200 && s.code < 300 =>
-            Future(rep)
-          case MultipleChoices =>
-            Future.exception(InvalidResponse(rep, "300/Multiple Choices is not yet supported in featherbed."))
-          case MovedPermanently | Found | SeeOther | TemporaryRedirect =>
-            val attempt = for {
-              tooMany <- if (remainingRedirects <= 0)
-                Left("Too many redirects; giving up")
-              else
-                Right(())
-              location <- Either.fromOption(
-                rep.headerMap.get("Location"),
-                "Redirect required, but location header not present")
-              newUrl <- Either.catchNonFatal(url.toURI.resolve(location))
-                .leftMap(_ => s"Could not resolve Location $location")
-              canHandle <- if (newUrl.getHost != url.getHost)
-                Either.left("Location points to another host; this isn't supported by featherbed")
-              else
-                Either.right(())
-            } yield {
-              val newReq = request()
-              newReq.uri = List(Option(newUrl.getPath), Option(newUrl.getQuery).map("?" + _)).flatten.mkString
-              handleRequest(() => newReq, filters, url, httpClient, remainingRedirects - 1)
-            }
-            attempt.fold(err => Future.exception(InvalidResponse(rep, err)), identity)
-          case other => Future.exception(ErrorResponse(req, rep))
-        }
-    }
-  }
 
 }
 
 object ClientRequest extends RequestTypes[ClientRequest] {
+
+  case class ContentToService[Meth <: Method, Accept <: Coproduct, Content, Result](
+    req: ClientRequest[Meth, Accept, None.type, None.type]
+  ) extends AnyVal {
+    def apply[ContentType <: String](contentType: Witness.Lt[ContentType])(implicit
+      canBuildRequest: CanBuildRequest[HTTPRequest[Meth, Accept, Content, ContentType]],
+      decodeAll: DecodeAll[Result, Accept]
+    ): Service[Content, Result] = {
+      new CodecFilter[Meth, Accept, Content, ContentType, Result](
+        req.request.copy[Meth, Accept, None.type, ContentType](content = MimeContent(None, contentType.value)),
+        req.client.maxFollows
+      ) andThen req.client.httpClient
+    }
+  }
 
   class ClientRequestSyntax(client: Client) extends RequestSyntax[ClientRequest] with RequestTypes[ClientRequest] {
 
@@ -212,7 +176,7 @@ object ClientRequest extends RequestTypes[ClientRequest] {
     def withParams(
       first: (String, String),
       rest: (String, String)*
-    ): FormPostRequest[Accept] = req.copy(
+    ): FormPostRequest[Accept, Form] = req.copy(
       request = req.request.withParams(first, rest: _*)
     )
 
@@ -229,5 +193,119 @@ object ClientRequest extends RequestTypes[ClientRequest] {
       request = req.request.withContent(content, contentType)
     )
   }
+
+  implicit class PutToServiceOps[Accept <: Coproduct](
+    val req: PutRequest[Accept, None.type, None.type]
+  ) extends AnyVal {
+    def toService[In, Out]: ContentToService[Method.Put.type, Accept, In, Out] = ContentToService(req)
+  }
+
+  case class PostMultipartFormToService[Accept <: Coproduct](
+    req: PostRequest[Accept, None.type, None.type]
+  ) extends AnyVal {
+    def toService[In, Out](implicit
+      canBuildRequest: CanBuildRequest[
+        HTTPRequest[Method.Post.type, Accept, In, MimeContent.MultipartForm]
+        ],
+      decodeAll: DecodeAll[Out, Accept]
+    ): Service[In, Out] =
+      ContentToService[Method.Post.type, Accept, In, Out](req)
+        .apply("multipart/form-data")
+  }
+
+
+  case class PostFormToService[Accept <: Coproduct](
+    req: PostRequest[Accept, None.type, None.type]
+  ) extends AnyVal {
+    def toService[In, Out](implicit
+      canBuildRequest: CanBuildRequest[
+          HTTPRequest[Method.Post.type, Accept, In, MimeContent.WebForm]
+        ],
+      decodeAll: DecodeAll[Out, Accept]
+    ): Service[In, Out] =
+      ContentToService[Method.Post.type, Accept, In, Out](req)
+        .apply("application/x-www-form-urlencoded")
+
+    def multipart: PostMultipartFormToService[Accept] = PostMultipartFormToService(req)
+  }
+
+  implicit class PostToServiceOps[Accept <: Coproduct](
+    val req: PostRequest[Accept, None.type, None.type]
+  ) extends AnyVal {
+    def toService[In, Out]: ContentToService[Method.Post.type, Accept, In, Out] = ContentToService(req)
+    def form: PostFormToService[Accept] = PostFormToService(req)
+  }
+
+  implicit class GetToServiceOps[Accept <: Coproduct](
+    val req: GetRequest[Accept]
+  ) extends AnyVal {
+    def toService[Result](implicit
+      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Get.type, Accept, None.type, None.type]],
+      decodeAll: DecodeAll[Result, Accept]
+    ): () => Future[Result] = new Function0[Future[Result]] {
+      private val service = new CodecFilter[Method.Get.type, Accept, Request, None.type, Result](
+        req.request, req.client.maxFollows
+      ) andThen req.client.httpClient
+
+      private val builtRequest = canBuildRequest.build(req.request).fold(
+        errs => Future.exception(errs.head),
+        req => Future.value(req)
+      )
+
+      def apply(): Future[Result] = for {
+        request <- builtRequest
+        result  <- service(request)
+      } yield result
+    }
+
+    def toService[Params, Result](implicit
+      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Get.type, Accept, None.type, None.type]],
+      decodeAll: DecodeAll[Result, Accept],
+      toQueryParams: ToQueryParams[Params]
+    ): Service[Params, Result] = {
+      new QueryFilter[Params, Request, Result](
+        params => {
+          val withParams = req.addQueryParams(params)
+          canBuildRequest.build(withParams.request).fold(
+            errs => Future.exception(errs.head),
+            req => Future.value(req)
+          )
+        }
+      ) andThen new CodecFilter[Method.Get.type, Accept, Request, None.type, Result](
+        req.request, req.client.maxFollows
+      ) andThen req.client.httpClient
+    }
+  }
+
+  implicit class HeadToServiceOps(val req: HeadRequest) extends AnyVal {
+    def toService(implicit
+      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Head.type, CNil, None.type, None.type]]
+    ): Service[Unit, Response] =
+      new UnitToNone[Response] andThen
+      new CodecFilter[Method.Head.type, CNil, None.type, None.type, Response](
+        req.request, req.client.maxFollows
+      ) andThen req.client.httpClient
+  }
+
+  implicit class DeleteToServiceOps[Accept <: Coproduct](val req: DeleteRequest[Accept]) extends AnyVal {
+    def toService[Result](implicit
+      canBuildRequest: CanBuildRequest[HTTPRequest[Method.Delete.type, Accept, None.type, None.type]],
+      decodeAll: DecodeAll[Result, Accept]
+    ): Service[Unit, Result] = new UnitToNone[Result] andThen
+      new CodecFilter[Method.Delete.type, Accept, None.type, None.type, Result](
+        req.request, req.client.maxFollows
+      ) andThen req.client.httpClient
+  }
+
+  implicit class PatchToServiceOps[Accept <: Coproduct](
+    val req: PatchRequest[Accept, None.type, None.type]
+  ) extends AnyVal {
+    def toService[In, Out]: ContentToService[Method.Patch.type, Accept, In, Out] = ContentToService(req)
+  }
+
+  private class UnitToNone[Rep] extends Filter[Unit, Rep, None.type, Rep] {
+    def apply(request: Unit, service: Service[None.type, Rep]): Future[Rep] = service(None)
+  }
+
 
 }

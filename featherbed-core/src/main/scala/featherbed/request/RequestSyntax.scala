@@ -75,8 +75,8 @@ trait RequestTypes[Req[Meth <: Method, Accept <: Coproduct, Content, ContentType
   type PostRequest[Accept <: Coproduct, Content, ContentType] =
     Req[Method.Post.type, Accept, Content, ContentType]
 
-  type FormPostRequest[Accept <: Coproduct] = PostRequest[Accept, Form, MimeContent.WebForm]
-  type MultipartFormRequest[Accept <: Coproduct] = PostRequest[Accept, MultipartForm, Witness.`"multipart/form-data"`.T]
+  type FormPostRequest[Accept <: Coproduct, Content] = PostRequest[Accept, Content, MimeContent.WebForm]
+  type MultipartFormRequest[Accept <: Coproduct, Content] = PostRequest[Accept, Content, MimeContent.MultipartForm]
 
   type PutRequest[Accept <: Coproduct, Content, ContentType] =
     Req[Method.Put.type, Accept, Content, ContentType]

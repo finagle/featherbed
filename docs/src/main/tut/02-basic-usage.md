@@ -42,8 +42,8 @@ Now you can make some requests:
 import com.twitter.util.Await
 
 Await.result {
-  val request = client.get("test/resource").send[Response]()
-  request map {
+  val request = client.get("test/resource").toService[Response]
+  request() map {
     response => response.contentString
   }
 }
