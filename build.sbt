@@ -15,6 +15,7 @@ lazy val buildSettings = Seq(
 val finagleVersion = "17.12.0"
 val shapelessVersion = "2.3.3"
 val catsVersion = "1.0.1"
+val circeVersion = "0.7.1"
 
 lazy val docSettings = Seq(
   autoAPIMappings := true
@@ -73,7 +74,13 @@ lazy val `featherbed-core` = project
   .settings(allSettings)
 
 lazy val `featherbed-circe` = project
-  .settings(allSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.circe" %% "circe-parser" % circeVersion,
+      "io.circe" %% "circe-generic" % circeVersion % "test"
+    ),
+    allSettings
+  )
   .dependsOn(`featherbed-core`)
 
 val scaladocVersionPath = settingKey[String]("Path to this version's ScalaDoc")
