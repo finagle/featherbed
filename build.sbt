@@ -29,7 +29,7 @@ lazy val baseSettings = docSettings ++ Seq(
     "org.scalatest" %% "scalatest" % "3.0.3" % "test"
   ),
   resolvers += Resolver.sonatypeRepo("snapshots"),
-  dependencyUpdatesFailBuild := true,
+  dependencyUpdatesFailBuild := false,
   dependencyUpdatesExclusions := moduleFilter("org.scala-lang")
 )
 
