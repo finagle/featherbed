@@ -27,8 +27,8 @@ import shapeless.{CNil, Coproduct, Witness}
   * @param response The original [[Response]], so it can be further processed if desired
   * @param reason A [[String]] describing why the response was invalid
   */
-case class InvalidResponse(response: Response, reason: String) extends Throwable
-case class ErrorResponse(request: Request, response: Response) extends Throwable
+case class InvalidResponse(response: Response, reason: String) extends Throwable(reason)
+case class ErrorResponse(request: Request, response: Response) extends Throwable("Error response received")
 
 trait RequestTypes { self: Client =>
 
