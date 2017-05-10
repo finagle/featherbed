@@ -1,6 +1,6 @@
 name := "featherbed-circe"
 
-val circeVersion = "0.7.1"
+val circeVersion = "0.8.0"
 
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core" % circeVersion,

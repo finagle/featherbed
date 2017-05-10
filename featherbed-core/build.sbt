@@ -1,7 +1,7 @@
 name := "featherbed-core"
 
 //featherbed-circe is duplicated in featherbed-core for testing
-val circeVersion = "0.7.1"
+val circeVersion = "0.8.0"
 
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core" % circeVersion % "test",
