@@ -42,7 +42,7 @@ val server = Http.serve(new InetSocketAddress(8768), new Service[Request, Respon
     rep.contentType = "application/json"
     Future.value(rep)
   }
-  
+
   def apply(request: Request): Future[Response] = request.uri match {
     case "/api/success" => response(Status.Ok, """{"foo": "bar"}""")
     case "/api/not/found" => response(
@@ -59,7 +59,7 @@ val server = Http.serve(new InetSocketAddress(8768), new Service[Request, Respon
       )
   }
 })
-// server: com.twitter.finagle.ListeningServer = Group(/0:0:0:0:0:0:0:0:8768)
+// server: com.twitter.finagle.ListeningServer = com.twitter.finagle.server.ListeningStackServer$$anon$1@4a4cc814
 
 // the type of the successful response
 case class Foo(foo: String)
@@ -67,7 +67,7 @@ case class Foo(foo: String)
 
 // the client
 val client = new featherbed.Client(new URL("http://localhost:8768/api/"))
-// client: featherbed.Client = featherbed.Client@6e8c59bf
+// client: featherbed.Client = featherbed.Client@52909c06
 ```
 
 When using the `send[T]` method, the resulting `Future` will *fail* if the server returns an HTTP error. This means that
@@ -75,7 +75,7 @@ in order to handle an error, you must handle it at the `Future` level using the 
 
 ```scala
 val req = client.get("not/found").accept("application/json")
-// req: client.GetRequest[shapeless.:+:[String("application/json"),shapeless.CNil]] = GetRequest(http://localhost:8768/api/not/found,List(),UTF-8)
+// req: client.GetRequest[String("application/json") :+: shapeless.CNil] = GetRequest(http://localhost:8768/api/not/found,List(),UTF-8)
 
 Await.result {
   req.send[Foo]().handle {
@@ -86,32 +86,35 @@ Await.result {
 // java.lang.Exception: Error response Response("HTTP/1.1 Status(404)") to request Request("GET /api/not/found", from 0.0.0.0/0.0.0.0:0)
 //   at $anonfun$1.applyOrElse(<console>:31)
 //   at $anonfun$1.applyOrElse(<console>:29)
-//   at scala.runtime.AbstractPartialFunction.apply(AbstractPartialFunction.scala:36)
-//   at com.twitter.util.Future$$anonfun$handle$1$$anonfun$applyOrElse$1.apply(Future.scala:1136)
-//   at com.twitter.util.Try$.apply(Try.scala:13)
-//   at com.twitter.util.Future$.apply(Future.scala:132)
-//   at com.twitter.util.Future$$anonfun$handle$1.applyOrElse(Future.scala:1136)
-//   at com.twitter.util.Future$$anonfun$handle$1.applyOrElse(Future.scala:1135)
-//   at com.twitter.util.Future$$anonfun$rescue$1.apply(Future.scala:1016)
-//   at com.twitter.util.Future$$anonfun$rescue$1.apply(Future.scala:1014)
-//   at com.twitter.util.Promise$Transformer.liftedTree1$1(Promise.scala:112)
-//   at com.twitter.util.Promise$Transformer.k(Promise.scala:112)
-//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:122)
-//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:103)
-//   at com.twitter.util.Promise$$anon$1.run(Promise.scala:366)
-//   at com.twitter.concurrent.LocalScheduler$Activation.run(Scheduler.scala:178)
-//   at com.twitter.concurrent.LocalScheduler$Activation.submit(Scheduler.scala:136)
-//   at com.twitter.concurrent.LocalScheduler.submit(Scheduler.scala:207)
-//   at com.twitter.concurrent.Scheduler$.submit(Scheduler.scala:92)
-//   at com.twitter.util.Promise.runq(Promise.scala:350)
-//   at com.twitter.util.Promise.updateIfEmpty(Promise.scala:721)
-//   at com.twitter.util.Promise.update(Promise.scala:694)
-//   at com.twitter.util.Promise.setValue(Promise.scala:670)
-//   at com.twitter.concurrent.AsyncQueue.offer(AsyncQueue.scala:111)
-//   at com.twitter.finagle.netty3.transport.ChannelTransport.handleUpstream(ChannelTransport.scala:55)
+//   at scala.runtime.AbstractPartialFunction.apply(AbstractPartialFunction.scala:34)
+//   at com.twitter.util.Future$$anonfun$handle$1.$anonfun$applyOrElse$1(Future.scala:1239)
+//   at com.twitter.util.Try$.apply(Try.scala:15)
+//   at com.twitter.util.Future$.apply(Future.scala:163)
+//   at com.twitter.util.Future$$anonfun$handle$1.applyOrElse(Future.scala:1239)
+//   at com.twitter.util.Future$$anonfun$handle$1.applyOrElse(Future.scala:1238)
+//   at com.twitter.util.Future.$anonfun$rescue$1(Future.scala:1119)
+//   at com.twitter.util.Promise$Transformer.liftedTree1$1(Promise.scala:107)
+//   at com.twitter.util.Promise$Transformer.k(Promise.scala:107)
+//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:117)
+//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:98)
+//   at com.twitter.util.Promise$$anon$1.run(Promise.scala:421)
+//   at com.twitter.concurrent.LocalScheduler$Activation.run(Scheduler.scala:200)
+//   at com.twitter.concurrent.LocalScheduler$Activation.submit(Scheduler.scala:158)
+//   at com.twitter.concurrent.LocalScheduler.submit(Scheduler.scala:272)
+//   at com.twitter.concurrent.Scheduler$.submit(Scheduler.scala:108)
+//   at com.twitter.util.Promise.runq(Promise.scala:406)
+//   at com.twitter.util.Promise.updateIfEmpty(Promise.scala:801)
+//   at com.twitter.util.Promise.update(Promise.scala:775)
+//   at com.twitter.util.Promise.setValue(Promise.scala:751)
+//   at com.twitter.concurrent.AsyncQueue.offer(AsyncQueue.scala:123)
+//   at com.twitter.finagle.netty3.transport.ChannelTransport.handleUpstream(ChannelTransport.scala:56)
 //   at org.jboss.netty.channel.DefaultChannelPipeline.sendUpstream(DefaultChannelPipeline.java:564)
 //   at org.jboss.netty.channel.DefaultChannelPipeline$DefaultChannelHandlerContext.sendUpstream(DefaultChannelPipeline.java:791)
 //   at org.jboss.netty.handler.codec.http.HttpContentDecoder.messageReceived(HttpContentDecoder.java:108)
+//   at org.jboss.netty.channel.SimpleChannelUpstreamHandler.handleUpstream(SimpleChannelUpstreamHandler.java:70)
+//   at org.jboss.netty.channel.DefaultChannelPipeline.sendUpstream(DefaultChannelPipeline.java:564)
+//   at org.jboss.netty.channel.DefaultChannelPipeline$DefaultChannelHandlerContext.sendUpstream(DefaultChannelPipeline.java:791)
+//   at org.jboss.netty.channel.SimpleChannelUpstreamHandler.messageReceived(SimpleChannelUpstreamHandler.java:124)
 //   at org.jboss.netty.channel.SimpleChannelUpstreamHandler.handleUpstream(SimpleChannelUpstreamHandler.java:70)
 //   at org.jboss.netty.channel.DefaultChannelPipeline.sendUpstream(DefaultChannelPipeline.java:564)
 //   at org.jboss.netty.channel.DefaultChannelPipeline$DefaultChannelHandlerContext.sendUpstream(DefaultChannelPipeline.java:791)
@@ -148,6 +151,7 @@ Await.result {
 //   at org.jboss.netty.util.internal.DeadLockProofWorker$1.run(DeadLockProofWorker.java:42)
 //   at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
 //   at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+//   at com.twitter.finagle.util.BlockingTimeTrackingThreadFactory$$anon$1.run(BlockingTimeTrackingThreadFactory.scala:24)
 //   at java.lang.Thread.run(Thread.java:745)
 ```
 
@@ -166,15 +170,14 @@ case class Error(error: String)
 // defined class Error
 
 val req = client.get("not/found").accept("application/json")
-// req: client.GetRequest[shapeless.:+:[String("application/json"),shapeless.CNil]] = GetRequest(http://localhost:8768/api/not/found,List(),UTF-8)
+// req: client.GetRequest[String("application/json") :+: shapeless.CNil] = GetRequest(http://localhost:8768/api/not/found,List(),UTF-8)
 
 Await.result(req.send[Error, Foo])
-// res4: cats.data.Xor[Error,Foo] = Left(Error(The thing couldn't be found))
+// res4: Either[Error,Foo] = Left(Error(The thing couldn't be found))
 ```
 
-Instead of an exception, we're capturing the server errors in an `Xor[Error, Foo]`. `Xor` is another data type from
-cats, which captures failures in a similar way to `Validated`. This is a typical pattern in Scala functional programming
-for dealing with operations which may fail. The benefit is that the well-defined error type is also automatically
+Instead of an exception, we're capturing the server errors in an `Either[Error, Foo]`. This is a typical pattern in Scala functional
+programming for dealing with operations which may fail. The benefit is that the well-defined error type is also automatically
 decoded for us. However, if the error can't be decoded, this will still result in a failed `Future`, which fails on the
 decoding rather than the server error.
 

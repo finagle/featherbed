@@ -40,13 +40,13 @@ val server = Http.serve(new InetSocketAddress(8766), new Service[Request, Respon
     rep
   }
 })
-// server: com.twitter.finagle.ListeningServer = Group(/0:0:0:0:0:0:0:0:8766)
+// server: com.twitter.finagle.ListeningServer = com.twitter.finagle.server.ListeningStackServer$$anon$1@328320a3
 
 import java.net.URL
 // import java.net.URL
 
 val client = new featherbed.Client(new URL("http://localhost:8766/api/"))
-// client: featherbed.Client = featherbed.Client@7656f63b
+// client: featherbed.Client = featherbed.Client@13929d7
 ```
 
 Importing `featherbed.circe._` brings an implicit derivation from `io.circe.Encoder[A]` to
@@ -66,7 +66,7 @@ case class Foo(someText : String, someInt : Int)
 
 // It can be passed directly to the POST
 val req = client.post("foo/bar").withContent(Foo("Hello world!", 42), "application/json")
-// req: client.PostRequest[Foo,String("application/json"),shapeless.:+:[String("*/*"),shapeless.CNil]] = PostRequest(http://localhost:8766/api/foo/bar,Foo(Hello world!,42),List(),UTF-8)
+// req: client.PostRequest[Foo,String("application/json"),String("*/*") :+: shapeless.CNil] = PostRequest(http://localhost:8766/api/foo/bar,Foo(Hello world!,42),List(),UTF-8)
 
 val result = Await.result {
    req.send[Response]() map {

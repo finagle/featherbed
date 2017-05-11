@@ -43,6 +43,8 @@ And we can define a class for our API client:
 
 ```scala
 class JSONPlaceholderAPI(baseUrl: URL) {
+  import featherbed.circe._
+  import io.circe.generic.auto._
 
   private val client = new featherbed.Client(baseUrl)
 
@@ -67,7 +69,7 @@ class JSONPlaceholderAPI(baseUrl: URL) {
 // defined class JSONPlaceholderAPI
 
 val apiClient = new JSONPlaceholderAPI(new URL("http://jsonplaceholder.typicode.com/"))
-// apiClient: JSONPlaceholderAPI = JSONPlaceholderAPI@4dfd0a78
+// apiClient: JSONPlaceholderAPI = JSONPlaceholderAPI@3ac689dd
 
 Await.result(apiClient.posts.list())
 // res0: Seq[Post] =
@@ -80,7 +82,7 @@ Await.result(apiClient.posts.list())
 // qui aperiam non debitis possimus qui neque nisi nulla), Post(1,3,ea molestias quasi exercitationem repellat qui ipsa sit aut,et iusto sed quo iure
 // voluptatem occaecati omnis eligendi aut ad
 // voluptatem doloribus vel accusantium quis pariatur
-// molestiae porro eius odio et labore et velit aut), Post(1,4,eum et est occaecati,ullam et saepe reiciendis volu...
+// molestiae porro eius odio et labore et velit aut), Post(1,4,eum et est occaecati,ulla...
 
 Await.result(apiClient.posts.get(1))
 // res1: Post =
@@ -89,5 +91,3 @@ Await.result(apiClient.posts.get(1))
 // reprehenderit molestiae ut ut quas totam
 // nostrum rerum est autem sunt rem eveniet architecto)
 ```
-
-

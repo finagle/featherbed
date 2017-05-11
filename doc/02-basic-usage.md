@@ -31,7 +31,7 @@ val server = Http.serve(new InetSocketAddress(8765), new Service[Request, Respon
     rep
   }
 })
-// server: com.twitter.finagle.ListeningServer = Group(/0:0:0:0:0:0:0:0:8765)
+// server: com.twitter.finagle.ListeningServer = com.twitter.finagle.server.ListeningStackServer$$anon$1@581797b9
 ```
 
 Create a `Client`, passing the base URL to the REST endpoints:
@@ -41,7 +41,7 @@ import java.net.URL
 // import java.net.URL
 
 val client = new featherbed.Client(new URL("http://localhost:8765/api/"))
-// client: featherbed.Client = featherbed.Client@31b0a644
+// client: featherbed.Client = featherbed.Client@9d3533e
 ```
 *Note:* It is important to put a trailing slash on your URL.  This is because the resource path you'll pass in below
 is evaluated as a relative URL to the base URL given.  Without a trailing slash, the `api` directory above would be
@@ -97,7 +97,7 @@ Here's how you might send a `HEAD` request (note the lack of a type argument to 
 Await.result {
   client.head("head/request").send().map(_.headerMap)
 }
-// res4: com.twitter.finagle.http.HeaderMap = Map(X-Foo -> Bar, Content-Length -> 0)
+// res4: com.twitter.finagle.http.HeaderMap = Map(X-Foo -> Bar, Connection -> close)
 ```
 
 A `DELETE` request:

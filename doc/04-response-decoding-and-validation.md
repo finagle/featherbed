@@ -55,13 +55,13 @@ val server = Http.serve(new InetSocketAddress(8767), new Service[Request, Respon
     }
   }
 })
-// server: com.twitter.finagle.ListeningServer = Group(/0:0:0:0:0:0:0:0:8767)
+// server: com.twitter.finagle.ListeningServer = com.twitter.finagle.server.ListeningStackServer$$anon$1@6d6d32b4
 
 import java.net.URL
 // import java.net.URL
 
 val client = new featherbed.Client(new URL("http://localhost:8767/api/"))
-// client: featherbed.Client = featherbed.Client@308ef697
+// client: featherbed.Client = featherbed.Client@4ee649a
 ```
 
 To specify that a response should be decoded, use the `send[T]` method to initiate the request:
@@ -80,8 +80,8 @@ Await.result {
   val request = client.post("foo/good").withContent(Foo("Hello world", 42), "application/json")
   request.send[Foo]()
 }
-// <console>:29: error: In order to decode a request to Foo, it must be known that a decoder exists to Foo from
-// all the content types that you Accept, which is currently shapeless.:+:[String("*/*"),shapeless.CNil].
+// <console>:30: error: In order to decode a request to Foo, it must be known that a decoder exists to Foo from
+// all the content types that you Accept, which is currently String("*/*") :+: shapeless.CNil.
 // You may have forgotten to specify Accept types with the `accept(..)` method,
 // or you may be missing Decoder instances for some content types.
 // 
@@ -104,7 +104,7 @@ val example1 = client.post(
   ).withContent(
     Foo("Hello world", 42), "application/json"
   ).accept[Coproduct.`"application/json"`.T]
-// example1: client.PostRequest[Foo,String("application/json"),shapeless.:+:[String("application/json"),shapeless.CNil]] = PostRequest(http://localhost:8767/api/foo/good,Foo(Hello world,42),List(),UTF-8)
+// example1: client.PostRequest[Foo,String("application/json"),String("application/json") :+: shapeless.CNil] = PostRequest(http://localhost:8767/api/foo/good,Foo(Hello world,42),List(),UTF-8)
 
 // Specifies that both "application/json" and "text/xml" are acceptable
 // Note that Featherbed doesn't currently ship with an XML decoder; it's just for sake of example.
@@ -113,7 +113,7 @@ val example2 = client.post(
   ).withContent(
     Foo("Hello world", 42), "application/json"
   ).accept[Coproduct.`"application/json", "text/xml"`.T]
-// example2: client.PostRequest[Foo,String("application/json"),shapeless.:+:[String("application/json"),shapeless.:+:[String("text/xml"),shapeless.CNil]]] = PostRequest(http://localhost:8767/api/foo/good,Foo(Hello world,42),List(),UTF-8)
+// example2: client.PostRequest[Foo,String("application/json"),String("application/json") :+: String("text/xml") :+: shapeless.CNil] = PostRequest(http://localhost:8767/api/foo/good,Foo(Hello world,42),List(),UTF-8)
 ```
 
 That ``Coproduct.`"a", "b"`.T `` syntax is specifying a *type* that encompasses the possible response MIME types that
@@ -125,7 +125,7 @@ val example3 = client.post(
   ).withContent(
     Foo("Hello world", 42), "application/json"
   ).accept("application/json", "text/xml")
-// example3: client.PostRequest[Foo,String("application/json"),shapeless.:+:[String("application/json"),shapeless.:+:[String("text/xml"),shapeless.CNil]]] = PostRequest(http://localhost:8767/api/foo/good,Foo(Hello world,42),List(),UTF-8)
+// example3: client.PostRequest[Foo,String("application/json"),String("application/json") :+: String("text/xml") :+: shapeless.CNil] = PostRequest(http://localhost:8767/api/foo/good,Foo(Hello world,42),List(),UTF-8)
 ```
 
 This uses a small macro to lift those `String` arguments into a `Coproduct` type, which looks a lot nicer and more
@@ -152,7 +152,7 @@ Look at that!  The JSON that came back was automatically decoded into a `Foo`!  
 thing around it?  As we're about to see, when you're interacting with a server, you can't be sure that
 you'll get what you expect.  The server might send malformed JSON, or might not send JSON at all. To
 handle this in an idiomatic way, the `Future` returned by `send[K]` will fail with `InvalidResponse` if
-the response can't be decoded.  The `InvalidResponse` contains a message about why the response was invalid, 
+the response can't be decoded.  The `InvalidResponse` contains a message about why the response was invalid,
 as well as the `Response` itself (so you can process it further if you like).
 
 Let's see what that looks like:
@@ -165,35 +165,36 @@ Await.result {
 
   request.send[Foo]()
 }
-// featherbed.request.InvalidResponse
-//   at featherbed.request.RequestTypes$RequestSyntax$$anonfun$sendRequest$1$$anonfun$apply$12.apply(RequestSyntax.scala:161)
-//   at featherbed.request.RequestTypes$RequestSyntax$$anonfun$sendRequest$1$$anonfun$apply$12.apply(RequestSyntax.scala:161)
-//   at scala.Function1$$anonfun$andThen$1.apply(Function1.scala:52)
+// featherbed.request.InvalidResponse: expected json value got T (line 1, column 1)
+//   at featherbed.request.RequestTypes$RequestSyntax.$anonfun$sendRequest$3(RequestSyntax.scala:161)
+//   at scala.Function1.$anonfun$andThen$1(Function1.scala:52)
 //   at cats.data.Validated.fold(Validated.scala:13)
-//   at cats.data.Validated.bimap(Validated.scala:94)
-//   at cats.data.Validated.leftMap(Validated.scala:144)
-//   at featherbed.request.RequestTypes$RequestSyntax$$anonfun$sendRequest$1.apply(RequestSyntax.scala:161)
-//   at featherbed.request.RequestTypes$RequestSyntax$$anonfun$sendRequest$1.apply(RequestSyntax.scala:155)
-//   at com.twitter.util.Future$$anonfun$flatMap$1.apply(Future.scala:986)
-//   at com.twitter.util.Future$$anonfun$flatMap$1.apply(Future.scala:985)
-//   at com.twitter.util.Promise$Transformer.liftedTree1$1(Promise.scala:112)
-//   at com.twitter.util.Promise$Transformer.k(Promise.scala:112)
-//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:122)
-//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:103)
-//   at com.twitter.util.Promise$$anon$1.run(Promise.scala:366)
-//   at com.twitter.concurrent.LocalScheduler$Activation.run(Scheduler.scala:178)
-//   at com.twitter.concurrent.LocalScheduler$Activation.submit(Scheduler.scala:136)
-//   at com.twitter.concurrent.LocalScheduler.submit(Scheduler.scala:207)
-//   at com.twitter.concurrent.Scheduler$.submit(Scheduler.scala:92)
-//   at com.twitter.util.Promise.runq(Promise.scala:350)
-//   at com.twitter.util.Promise.updateIfEmpty(Promise.scala:721)
-//   at com.twitter.util.Promise.update(Promise.scala:694)
-//   at com.twitter.util.Promise.setValue(Promise.scala:670)
-//   at com.twitter.concurrent.AsyncQueue.offer(AsyncQueue.scala:111)
-//   at com.twitter.finagle.netty3.transport.ChannelTransport.handleUpstream(ChannelTransport.scala:55)
+//   at cats.data.Validated.bimap(Validated.scala:104)
+//   at cats.data.Validated.leftMap(Validated.scala:153)
+//   at featherbed.request.RequestTypes$RequestSyntax.$anonfun$sendRequest$1(RequestSyntax.scala:161)
+//   at com.twitter.util.Future.$anonfun$flatMap$1(Future.scala:1089)
+//   at com.twitter.util.Promise$Transformer.liftedTree1$1(Promise.scala:107)
+//   at com.twitter.util.Promise$Transformer.k(Promise.scala:107)
+//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:117)
+//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:98)
+//   at com.twitter.util.Promise$$anon$1.run(Promise.scala:421)
+//   at com.twitter.concurrent.LocalScheduler$Activation.run(Scheduler.scala:200)
+//   at com.twitter.concurrent.LocalScheduler$Activation.submit(Scheduler.scala:158)
+//   at com.twitter.concurrent.LocalScheduler.submit(Scheduler.scala:272)
+//   at com.twitter.concurrent.Scheduler$.submit(Scheduler.scala:108)
+//   at com.twitter.util.Promise.runq(Promise.scala:406)
+//   at com.twitter.util.Promise.updateIfEmpty(Promise.scala:801)
+//   at com.twitter.util.Promise.update(Promise.scala:775)
+//   at com.twitter.util.Promise.setValue(Promise.scala:751)
+//   at com.twitter.concurrent.AsyncQueue.offer(AsyncQueue.scala:123)
+//   at com.twitter.finagle.netty3.transport.ChannelTransport.handleUpstream(ChannelTransport.scala:56)
 //   at org.jboss.netty.channel.DefaultChannelPipeline.sendUpstream(DefaultChannelPipeline.java:564)
 //   at org.jboss.netty.channel.DefaultChannelPipeline$DefaultChannelHandlerContext.sendUpstream(DefaultChannelPipeline.java:791)
 //   at org.jboss.netty.handler.codec.http.HttpContentDecoder.messageReceived(HttpContentDecoder.java:108)
+//   at org.jboss.netty.channel.SimpleChannelUpstreamHandler.handleUpstream(SimpleChannelUpstreamHandler.java:70)
+//   at org.jboss.netty.channel.DefaultChannelPipeline.sendUpstream(DefaultChannelPipeline.java:564)
+//   at org.jboss.netty.channel.DefaultChannelPipeline$DefaultChannelHandlerContext.sendUpstream(DefaultChannelPipeline.java:791)
+//   at org.jboss.netty.channel.SimpleChannelUpstreamHandler.messageReceived(SimpleChannelUpstreamHandler.java:124)
 //   at org.jboss.netty.channel.SimpleChannelUpstreamHandler.handleUpstream(SimpleChannelUpstreamHandler.java:70)
 //   at org.jboss.netty.channel.DefaultChannelPipeline.sendUpstream(DefaultChannelPipeline.java:564)
 //   at org.jboss.netty.channel.DefaultChannelPipeline$DefaultChannelHandlerContext.sendUpstream(DefaultChannelPipeline.java:791)
@@ -230,17 +231,15 @@ Await.result {
 //   at org.jboss.netty.util.internal.DeadLockProofWorker$1.run(DeadLockProofWorker.java:42)
 //   at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
 //   at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+//   at com.twitter.finagle.util.BlockingTimeTrackingThreadFactory$$anon$1.run(BlockingTimeTrackingThreadFactory.scala:24)
 //   at java.lang.Thread.run(Thread.java:745)
 ```
 
 Here, since we didn't handle the `InvalidResponse`, awaiting the future resulted in an exception being thrown. Instead,
 you can `handle` the failed future and recover in some way. A typical pattern is to capture the error in something like
-an `Xor` (in cats) or an `Either` (in Scala's standard library):
+`Either``:
 
 ```scala
-import cats.data.Xor
-// import cats.data.Xor
-
 import featherbed.request.InvalidResponse
 // import featherbed.request.InvalidResponse
 
@@ -249,15 +248,15 @@ Await.result {
     .withContent(Foo("Hello world", 42), "application/json")
     .accept("application/json")
 
-  request.send[Foo]().map(Xor.right).handle {
-    case err @ InvalidResponse(rep, reason) => Xor.left(err)
+  request.send[Foo]().map(Right.apply).handle {
+    case err @ InvalidResponse(rep, reason) => Left(err)
   }
 }
-// res6: cats.data.Xor[featherbed.request.InvalidResponse,Foo] = Left(featherbed.request.InvalidResponse)
+// res6: scala.util.Either[featherbed.request.InvalidResponse,Foo] = Left(featherbed.request.InvalidResponse: expected json value got T (line 1, column 1))
 ```
 
-This example maps the `Future`'s successful result into an `Xor.Right`, and the `InvalidResponse` case into `Xor.Left`,
-which represents the failure. The `Xor` can be handled further by the application.
+This example maps the `Future`'s successful result into a `Right`, and the `InvalidResponse` case into a `Left`,
+which represents the failure. The `Either` can be handled further by the application.
 
 Alternatively, you might want to use some default `Foo` in the event that the response can't be decoded:
 
@@ -267,7 +266,7 @@ Await.result {
     .withContent(Foo("Hello world", 42), "application/json")
     .accept("application/json")
 
-  request.send[Foo]().map(Xor.right).handle {
+  request.send[Foo]().map(Right.apply).handle {
     case InvalidResponse(rep, reason) =>
       println(s"ERROR: response decoding failed: $reason")
       Foo("Default", 0)
@@ -287,29 +286,31 @@ Await.result {
 
   request.send[Foo]()
 }
-// featherbed.request.InvalidResponse
-//   at featherbed.request.RequestTypes$RequestSyntax$$anonfun$sendRequest$1.apply(RequestSyntax.scala:167)
-//   at featherbed.request.RequestTypes$RequestSyntax$$anonfun$sendRequest$1.apply(RequestSyntax.scala:155)
-//   at com.twitter.util.Future$$anonfun$flatMap$1.apply(Future.scala:986)
-//   at com.twitter.util.Future$$anonfun$flatMap$1.apply(Future.scala:985)
-//   at com.twitter.util.Promise$Transformer.liftedTree1$1(Promise.scala:112)
-//   at com.twitter.util.Promise$Transformer.k(Promise.scala:112)
-//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:122)
-//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:103)
-//   at com.twitter.util.Promise$$anon$1.run(Promise.scala:366)
-//   at com.twitter.concurrent.LocalScheduler$Activation.run(Scheduler.scala:178)
-//   at com.twitter.concurrent.LocalScheduler$Activation.submit(Scheduler.scala:136)
-//   at com.twitter.concurrent.LocalScheduler.submit(Scheduler.scala:207)
-//   at com.twitter.concurrent.Scheduler$.submit(Scheduler.scala:92)
-//   at com.twitter.util.Promise.runq(Promise.scala:350)
-//   at com.twitter.util.Promise.updateIfEmpty(Promise.scala:721)
-//   at com.twitter.util.Promise.update(Promise.scala:694)
-//   at com.twitter.util.Promise.setValue(Promise.scala:670)
-//   at com.twitter.concurrent.AsyncQueue.offer(AsyncQueue.scala:111)
-//   at com.twitter.finagle.netty3.transport.ChannelTransport.handleUpstream(ChannelTransport.scala:55)
+// featherbed.request.InvalidResponse: No decoder was found for pie/pumpkin
+//   at featherbed.request.RequestTypes$RequestSyntax.$anonfun$sendRequest$1(RequestSyntax.scala:167)
+//   at com.twitter.util.Future.$anonfun$flatMap$1(Future.scala:1089)
+//   at com.twitter.util.Promise$Transformer.liftedTree1$1(Promise.scala:107)
+//   at com.twitter.util.Promise$Transformer.k(Promise.scala:107)
+//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:117)
+//   at com.twitter.util.Promise$Transformer.apply(Promise.scala:98)
+//   at com.twitter.util.Promise$$anon$1.run(Promise.scala:421)
+//   at com.twitter.concurrent.LocalScheduler$Activation.run(Scheduler.scala:200)
+//   at com.twitter.concurrent.LocalScheduler$Activation.submit(Scheduler.scala:158)
+//   at com.twitter.concurrent.LocalScheduler.submit(Scheduler.scala:272)
+//   at com.twitter.concurrent.Scheduler$.submit(Scheduler.scala:108)
+//   at com.twitter.util.Promise.runq(Promise.scala:406)
+//   at com.twitter.util.Promise.updateIfEmpty(Promise.scala:801)
+//   at com.twitter.util.Promise.update(Promise.scala:775)
+//   at com.twitter.util.Promise.setValue(Promise.scala:751)
+//   at com.twitter.concurrent.AsyncQueue.offer(AsyncQueue.scala:123)
+//   at com.twitter.finagle.netty3.transport.ChannelTransport.handleUpstream(ChannelTransport.scala:56)
 //   at org.jboss.netty.channel.DefaultChannelPipeline.sendUpstream(DefaultChannelPipeline.java:564)
 //   at org.jboss.netty.channel.DefaultChannelPipeline$DefaultChannelHandlerContext.sendUpstream(DefaultChannelPipeline.java:791)
 //   at org.jboss.netty.handler.codec.http.HttpContentDecoder.messageReceived(HttpContentDecoder.java:108)
+//   at org.jboss.netty.channel.SimpleChannelUpstreamHandler.handleUpstream(SimpleChannelUpstreamHandler.java:70)
+//   at org.jboss.netty.channel.DefaultChannelPipeline.sendUpstream(DefaultChannelPipeline.java:564)
+//   at org.jboss.netty.channel.DefaultChannelPipeline$DefaultChannelHandlerContext.sendUpstream(DefaultChannelPipeline.java:791)
+//   at org.jboss.netty.channel.SimpleChannelUpstreamHandler.messageReceived(SimpleChannelUpstreamHandler.java:124)
 //   at org.jboss.netty.channel.SimpleChannelUpstreamHandler.handleUpstream(SimpleChannelUpstreamHandler.java:70)
 //   at org.jboss.netty.channel.DefaultChannelPipeline.sendUpstream(DefaultChannelPipeline.java:564)
 //   at org.jboss.netty.channel.DefaultChannelPipeline$DefaultChannelHandlerContext.sendUpstream(DefaultChannelPipeline.java:791)
@@ -346,6 +347,7 @@ Await.result {
 //   at org.jboss.netty.util.internal.DeadLockProofWorker$1.run(DeadLockProofWorker.java:42)
 //   at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
 //   at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+//   at com.twitter.finagle.util.BlockingTimeTrackingThreadFactory$$anon$1.run(BlockingTimeTrackingThreadFactory.scala:24)
 //   at java.lang.Thread.run(Thread.java:745)
 ```
 
