@@ -7,7 +7,7 @@ enablePlugins(TutPlugin)
 
 lazy val buildSettings = Seq(
   organization := "io.github.finagle",
-  version := "0.3.0",
+  version := "0.3.1",
   scalaVersion := "2.12.2",
   crossScalaVersions := Seq("2.11.11", "2.12.2")
 )
