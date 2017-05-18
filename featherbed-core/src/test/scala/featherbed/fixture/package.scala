@@ -1,3 +1,5 @@
+package featherbed
+
 import java.net.URL
 
 import com.twitter.finagle.{Filter, Http}
@@ -5,8 +7,8 @@ import com.twitter.finagle.http.{Request, Response}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
 
-package object featherbed {
-  private[featherbed] class MockClient (
+package object fixture {
+  private[fixture] class MockClient (
     baseUrl: URL,
     filter: Filter[Request, Response, Request, Response]
   ) extends Client(baseUrl) {
