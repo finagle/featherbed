@@ -1,19 +1,14 @@
 package featherbed
 
-import java.nio.charset.Charset
-
-import featherbed.circe._
-import featherbed.content.Encoder
-
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated.{Invalid, Valid}
 import com.twitter.finagle.{Service, SimpleFilter}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.io.Buf
 import com.twitter.util.{Await, Future}
-import featherbed.request.{ErrorResponse, InvalidResponse, RequestBuildingError}
-import io.circe.generic.auto._
-import io.circe.syntax._
+import featherbed.content.{Decoder, Encoder}
+import featherbed.fixture.ClientTest
+import featherbed.request._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.FreeSpec
 import shapeless.Witness
@@ -31,9 +26,30 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
   case object BadContent extends TestContent
 
   implicit val testContentEncoder: Encoder[TestContent, Witness.`"test/content"`.T] = Encoder.of("test/content") {
-      case (GoodContent, _) => Valid(Buf.Utf8("Good")).toValidatedNel
-      case (BadContent, _) => Invalid(NonEmptyList(new Exception("Bad"), Nil))
+    case (GoodContent, _) => Valid(Buf.Utf8("Good")).toValidatedNel
+    case (BadContent, _) => Invalid(NonEmptyList(new Exception("Bad"), Nil))
+  }
+
+  case object DecodingError extends Throwable
+
+  implicit val testResponseDecoder: Decoder.Aux[Witness.`"test/response"`.T, TestResponse] =
+    Decoder.of("test/response") {
+      response =>
+        val Regex = """TestResponse\((.*),(\d+)\)""".r
+        response.contentString match {
+          case Regex(str, int) => Validated.catchNonFatal(int.toInt).map(TestResponse(str, _)).toValidatedNel
+          case _ => Invalid(DecodingError).toValidatedNel
+        }
     }
+
+  implicit val testErrorDecoder: Decoder.Aux[Witness.`"test/response"`.T, TestError] = Decoder.of("test/response") {
+    response =>
+      val Regex = """TestError\((.*),(true|false)\)""".r
+      response.contentString match {
+        case Regex(str, b) => Validated.catchNonFatal(b.toBoolean).map(TestError(str, _)).toValidatedNel
+        case _ => Invalid(DecodingError).toValidatedNel
+      }
+  }
 
 
   val receiver = mockFunction[Request, Response]("receiveRequest")
@@ -52,7 +68,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       val content: TestContent = BadContent
       val req = client.post("foo")
         .withContent(content, "test/content")
-        .accept("application/json")
+        .accept("test/response")
 
       intercept[RequestBuildingError](Await.result(req.send[TestResponse]()))
     }
@@ -68,7 +84,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
           val content: TestContent = GoodContent
           val req = client.post("foo")
             .withContent(content, "test/content")
-            .accept("application/json")
+            .accept("test/response")
 
           intercept[ErrorResponse](Await.result(req.send[TestResponse]()))
         }
@@ -80,13 +96,13 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
         val response = Response()
         response.statusCode = 200
         response.contentType = "foo/bar"
-        response.contentString = testResponse.asJson.noSpaces
+        response.contentString = testResponse.toString
         response
       }
       val content: TestContent = GoodContent
       val req = client.post("foo")
         .withContent(content, "test/content")
-        .accept("application/json")
+        .accept("test/response")
       intercept[InvalidResponse](Await.result(req.send[TestResponse]()))
     }
 
@@ -94,14 +110,14 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       receiver expects * returning {
         val response = Response()
         response.statusCode = 200
-        response.contentType = "application/json"
+        response.contentType = "test/response"
         response.contentString = "not json"
         response
       }
       val content: TestContent = GoodContent
       val req = client.post("foo")
         .withContent(content, "test/content")
-        .accept("application/json")
+        .accept("test/response")
       intercept[InvalidResponse](Await.result(req.send[TestResponse]()))
     }
 
@@ -109,14 +125,14 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       receiver expects * returning {
         val response = Response()
         response.statusCode = 200
-        response.contentType = "application/json"
-        response.contentString = testResponse.asJson.noSpaces
+        response.contentType = "test/response"
+        response.contentString = testResponse.toString
         response
       }
       val content: TestContent = GoodContent
       val req = client.post("foo")
         .withContent(content, "test/content")
-        .accept("application/json")
+        .accept("test/response")
       val result = Await.result(req.send[TestResponse]())
       assert(result == testResponse)
     }
@@ -129,7 +145,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       val content: TestContent = BadContent
       val req = client.post("foo")
         .withContent(content, "test/content")
-        .accept("application/json")
+        .accept("test/response")
 
       intercept[RequestBuildingError](Await.result(req.send[TestError, TestResponse]()))
     }
@@ -140,14 +156,14 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
           receiver expects * returning {
             val response = Response()
             response.statusCode = code
-            response.contentType = "application/json"
-            response.contentString = testError.asJson.noSpaces
+            response.contentType = "test/response"
+            response.contentString = testError.toString
             response
           }
           val content: TestContent = GoodContent
           val req = client.post("foo")
             .withContent(content, "test/content")
-            .accept("application/json")
+            .accept("test/response")
 
           val result = Await.result(req.send[TestError, TestResponse]())
           assert(result == Left(testError))
@@ -160,13 +176,13 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
         val response = Response()
         response.statusCode = 200
         response.contentType = "foo/bar"
-        response.contentString = testResponse.asJson.noSpaces
+        response.contentString = testResponse.toString
         response
       }
       val content: TestContent = GoodContent
       val req = client.post("foo")
         .withContent(content, "test/content")
-        .accept("application/json")
+        .accept("test/response")
       intercept[InvalidResponse](Await.result(req.send[TestError, TestResponse]()))
     }
 
@@ -174,14 +190,14 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       receiver expects * returning {
         val response = Response()
         response.statusCode = 200
-        response.contentType = "application/json"
+        response.contentType = "test/response"
         response.contentString = "not json"
         response
       }
       val content: TestContent = GoodContent
       val req = client.post("foo")
         .withContent(content, "test/content")
-        .accept("application/json")
+        .accept("test/response")
       intercept[InvalidResponse](Await.result(req.send[TestError, TestResponse]()))
     }
 
@@ -189,14 +205,14 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       receiver expects * returning {
         val response = Response()
         response.statusCode = 400
-        response.contentType = "applicatoin/json"
+        response.contentType = "test/response"
         response.contentString = "not json"
         response
       }
       val content: TestContent = GoodContent
       val req = client.post("foo")
         .withContent(content, "test/content")
-        .accept("application/json")
+        .accept("test/response")
       intercept[InvalidResponse](Await.result(req.send[TestError, TestResponse]()))
     }
 
@@ -204,14 +220,14 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       receiver expects * returning {
         val response = Response()
         response.statusCode = 200
-        response.contentType = "application/json"
-        response.contentString = testResponse.asJson.noSpaces
+        response.contentType = "test/response"
+        response.contentString = testResponse.toString
         response
       }
       val content: TestContent = GoodContent
       val req = client.post("foo")
         .withContent(content, "test/content")
-        .accept("application/json")
+        .accept("test/response")
       val result = Await.result(req.send[TestError, TestResponse]())
       assert(result == Right(testResponse))
     }
@@ -224,14 +240,14 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
           receiver expects * returning {
             val response = Response()
             response.statusCode = code
-            response.contentType = "application/json"
-            response.contentString = testError.asJson.noSpaces
+            response.contentType = "test/response"
+            response.contentString = testError.toString
             response
           }
           val content: TestContent = GoodContent
           val req = client.post("foo")
             .withContent(content, "test/content")
-            .accept("application/json")
+            .accept("test/response")
 
           val result = Await.result(req.sendZip[TestError, TestResponse]())
           assert(result._1 == Left(testError))
@@ -244,14 +260,14 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       receiver expects * returning {
         val response = Response()
         response.statusCode = 200
-        response.contentType = "application/json"
-        response.contentString = testResponse.asJson.noSpaces
+        response.contentType = "test/response"
+        response.contentString = testResponse.toString
         response
       }
       val content: TestContent = GoodContent
       val req = client.post("foo")
         .withContent(content, "test/content")
-        .accept("application/json")
+        .accept("test/response")
       val result = Await.result(req.sendZip[TestError, TestResponse]())
       assert(result._1 == Right(testResponse))
       assert(result._2.isInstanceOf[Response])

@@ -5,6 +5,7 @@ import java.nio.charset.Charset
 import com.twitter.finagle.{Service, SimpleFilter}
 import com.twitter.finagle.http.{Method, Request, Response}
 import com.twitter.util.{Await, Future}
+import featherbed.fixture.ClientTest
 import featherbed.support.DecodeAll
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterEach, FlatSpec}
