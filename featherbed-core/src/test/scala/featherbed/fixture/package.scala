@@ -2,8 +2,8 @@ package featherbed
 
 import java.net.URL
 
-import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finagle.{Filter, Http}
+import com.twitter.finagle.http.{Request, Response}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
 
