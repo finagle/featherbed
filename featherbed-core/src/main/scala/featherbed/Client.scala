@@ -80,9 +80,9 @@ class Client(
 
   protected def serviceTransform(service: Service[Request, Response]): Service[Request, Response] = service
 
-  protected val client = clientTransform(Client.forUrl(baseUrl))
+  protected lazy val client = clientTransform(Client.forUrl(baseUrl))
 
-  protected[featherbed] val httpClient = serviceTransform(client.newService(Client.hostAndPort(baseUrl)))
+  protected[featherbed] lazy val httpClient = serviceTransform(client.newService(Client.hostAndPort(baseUrl)))
 }
 
 object Client {
