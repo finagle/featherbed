@@ -14,7 +14,7 @@ lazy val buildSettings = Seq(
 
 val finagleVersion = "6.44.0"
 val shapelessVersion = "2.3.2"
-val catsVersion = "0.9.0"
+val catsVersion = "1.0.0-RC1"
 
 lazy val docSettings = Seq(
   autoAPIMappings := true
@@ -24,7 +24,7 @@ lazy val baseSettings = docSettings ++ Seq(
   libraryDependencies ++= Seq(
     "com.twitter" %% "finagle-http" % finagleVersion,
     "com.chuusai" %% "shapeless" % shapelessVersion,
-    "org.typelevel" %% "cats" % catsVersion,
+    "org.typelevel" %% "cats-core" % catsVersion,
     "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
     "org.scalatest" %% "scalatest" % "3.0.3" % "test"
   ),
