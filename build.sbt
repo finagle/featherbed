@@ -106,6 +106,9 @@ lazy val docs: Project = project
             case _ => Nil
           }
         )
+      ),
+      libraryDependencies ++= Seq(
+        "io.circe" %% "circe-generic" % circeVersion
       )
     ).dependsOn(`featherbed-core`, `featherbed-circe`)
 

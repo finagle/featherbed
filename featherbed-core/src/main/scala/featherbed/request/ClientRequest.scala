@@ -105,7 +105,7 @@ case class ClientRequest[Meth <: String, Accept <: Coproduct, Content, ContentTy
     response => CodecFilter.decodeResponse[K, Accept](response)
   }
 
-  def send[E, S]()(implicit
+  def trySend[E, S]()(implicit
     canBuildRequest: CanBuildRequest[HTTPRequest[Meth, Accept, Content, ContentType]],
     decodeSuccess: DecodeAll[S, Accept],
     decodeError: DecodeAll[E, Accept]

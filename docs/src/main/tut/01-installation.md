@@ -11,7 +11,7 @@ Add the following to build.sbt
 resolvers += Resolver.sonatypeRepo("snapshots")
 
 libraryDependencies ++= Seq(
-  "io.github.finagle" %"featherbed_2.11" %"0.3.0"
+  "io.github.finagle" %"featherbed_2.11" %"0.3.1"
 )
 ```
 Next, read about [Basic Usage](02-basic-usage.html)

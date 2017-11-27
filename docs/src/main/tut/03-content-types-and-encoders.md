@@ -49,11 +49,13 @@ import featherbed.circe._
 // An ADT for the request
 case class Foo(someText : String, someInt : Int)
 
-// It can be passed directly to the POST
-val req = client.post("foo/bar").withContent(Foo("Hello world!", 42), "application/json")
+// Create a service for the request
+val req = client.post("foo/bar").
+  toService[Foo, Response]("application/json")
 
+// We can pass Foo directly to the service
 val result = Await.result {
-   req.send[Response]() map {
+   req(Foo("Hello world!", 42)) map {
     response => response.contentString
   }
 }
@@ -69,18 +71,16 @@ type's companion object.  See the Circe documentation for more details about JSO
 
 ### A Note About Evaluation
 
-You may have noticed that above we created a value called `req`, which held the result of specifying the request
-type and its parameters.  We later called `send[Response]` on that value and `map`ped over the result to specify a
+You may have noticed that above we created a value called `req`, which held the result of specifying the request type
+and creating a service.  We later called `req()` on that value and `map`ped over the result to specify a
 transformation of the response.
 
-It's important to note that the request itself **is not performed** until the call to `send`. Until that call is made,
-you will have an instance of some kind of request, but you will not have a `Future` representing the response.  That is,
-the request itself is *lazy*.  The reason this is important to note is that `req` itself can actually be used to make
-the same request again.  If another call is made to `send`, a new request of the same parameters will be initiated and a
-new `Future` will be returned.  This can be a useful and powerful thing, but it can also bite you if you're unaware.
-
-For more information about lazy tasks, take a look at scalaz's `Task` or cats's `Eval`.  Again, this is important to
-note, and is different than what people are used to with Finagle's `Future` (which is not lazy).
+It's important to note that the request itself **is not performed** until the call to `Service#apply`. Until that call
+is made, you will have an instance of some kind of request, but you will not have a `Future` representing the response.
+That is, the request itself is *lazy*.  The reason this is important to note is that `req` itself can actually be used
+to make the same request again.  If another call is made to `req()`, a new request of the same configuration will be
+initiated with the new input and a new `Future` will be returned.  This can be a useful and powerful thing, but it
+can also bite you if you're unaware.
 
 ### A Note About Types
 

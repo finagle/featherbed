@@ -58,10 +58,13 @@ When using the `send[T]` method, the resulting `Future` will *fail* if the serve
 in order to handle an error, you must handle it at the `Future` level using the `Future` API:
 
 ```tut:book:nofail
-val req = client.get("not/found").accept("application/json")
+val req = client.
+  get("not/found").
+  accept("application/json").
+  toService[Foo]
 
 Await.result {
-  req.send[Foo]().handle {
+  req().handle {
     case ErrorResponse(request, response) =>
       throw new Exception(s"Error response $response to request $request")
   }

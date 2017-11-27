@@ -26,9 +26,9 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
   case object BadContent extends TestContent
 
   implicit val testContentEncoder: Encoder[TestContent, Witness.`"test/content"`.T] = Encoder.of("test/content") {
-      case (GoodContent, _) => Valid(Buf.Utf8("Good")).toValidatedNel
-      case (BadContent, _) => Invalid(NonEmptyList(new Exception("Bad"), Nil))
-    }
+    case (GoodContent, _) => Valid(Buf.Utf8("Good")).toValidatedNel
+    case (BadContent, _) => Invalid(NonEmptyList(new Exception("Bad"), Nil))
+  }
 
   case object DecodingError extends Throwable
 
@@ -139,7 +139,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
 
   }
 
-  "send[Error, Success]" - {
+  "trySend[Error, Success]" - {
 
     "returns failed future when request is invalid" in {
       val content: TestContent = BadContent
@@ -147,7 +147,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
         .withContent(content, "test/content")
         .accept("test/response")
 
-      intercept[RequestBuildingError](Await.result(req.send[TestError, TestResponse]()))
+      intercept[RequestBuildingError](Await.result(req.trySend[TestError, TestResponse]()))
     }
 
     "returns successful future when request fails with valid error response" - {
@@ -165,7 +165,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
             .withContent(content, "test/content")
             .accept("test/response")
 
-          val result = Await.result(req.send[TestError, TestResponse]())
+          val result = Await.result(req.trySend[TestError, TestResponse]())
           assert(result == Left(testError))
         }
       }
@@ -183,7 +183,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       val req = client.post("foo")
         .withContent(content, "test/content")
         .accept("test/response")
-      intercept[InvalidResponse](Await.result(req.send[TestError, TestResponse]()))
+      intercept[InvalidResponse](Await.result(req.trySend[TestError, TestResponse]()))
     }
 
     "returns failed future when successful response fails to decode" in {
@@ -198,7 +198,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       val req = client.post("foo")
         .withContent(content, "test/content")
         .accept("test/response")
-      intercept[InvalidResponse](Await.result(req.send[TestError, TestResponse]()))
+      intercept[InvalidResponse](Await.result(req.trySend[TestError, TestResponse]()))
     }
 
     "returns failed future when error response fails to decode" in {
@@ -213,7 +213,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       val req = client.post("foo")
         .withContent(content, "test/content")
         .accept("test/response")
-      intercept[InvalidResponse](Await.result(req.send[TestError, TestResponse]()))
+      intercept[InvalidResponse](Await.result(req.trySend[TestError, TestResponse]()))
     }
 
     "returns successful future when everything works" in {
@@ -228,7 +228,7 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       val req = client.post("foo")
         .withContent(content, "test/content")
         .accept("test/response")
-      val result = Await.result(req.send[TestError, TestResponse]())
+      val result = Await.result(req.trySend[TestError, TestResponse]())
       assert(result == Right(testResponse))
     }
   }
@@ -272,5 +272,9 @@ class ErrorHandlingSpec extends FreeSpec with MockFactory with ClientTest {
       assert(result._1 == Right(testResponse))
       assert(result._2.isInstanceOf[Response])
     }
+  }
+
+  "toService" - {
+
   }
 }

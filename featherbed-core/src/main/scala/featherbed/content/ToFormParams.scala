@@ -42,6 +42,8 @@ object ToFormParams {
     toFormParamsL: ToFormParams[L]
   ): ToFormParams[P] = Instance(p => toFormParamsL(gen.to(p)))
 
+  implicit val stringMap: ToFormParams[Map[String, String]] =
+    Instance(map => Validated.valid(map.toList.map(SimpleElement.tupled)))
   implicit val form: ToFormParams[Form] = Instance(form => Validated.valid(form.params.toList))
   implicit val multipartForm: ToFormParams[MultipartForm] = Instance(form => form.params.map(_.toList))
 
