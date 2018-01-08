@@ -12,7 +12,7 @@ import shapeless.Witness
 
 package object circe {
 
-  private val printer = Printer.noSpaces.copy(dropNullKeys = true)
+  private val printer = Printer.noSpaces.copy(dropNullValues = true)
 
   implicit def circeEncoder[A: Encoder]: content.Encoder[A, Witness.`"application/json"`.T] =
     content.Encoder.of("application/json") {

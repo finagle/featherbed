@@ -125,7 +125,7 @@ Look at that!  The JSON that came back was automatically decoded into a `Foo`!  
 thing around it?  As we're about to see, when you're interacting with a server, you can't be sure that
 you'll get what you expect.  The server might send malformed JSON, or might not send JSON at all. To
 handle this in an idiomatic way, the `Future` returned by `send[K]` will fail with `InvalidResponse` if
-the response can't be decoded.  The `InvalidResponse` contains a message about why the response was invalid, 
+the response can't be decoded.  The `InvalidResponse` contains a message about why the response was invalid,
 as well as the `Response` itself (so you can process it further if you like).
 
 Let's see what that looks like:
