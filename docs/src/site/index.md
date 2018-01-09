@@ -30,7 +30,7 @@ To get started with featherbed, check out the [Guide](doc/). Detailed API docume
 Featherbed aims to have a minimal set of dependencies.  Besides `finagle-http`, the core project is
 dependent only on [shapeless](https://github.com/milessabin/shapeless) and [cats](https://github.com/typelevel/cats).
 
-featherbed-circe depends additionall on [circe](https://github.com/travisbrown/circe)
+featherbed-circe depends additional on [circe](https://github.com/travisbrown/circe)
 
 ## License
 
