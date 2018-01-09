@@ -1,20 +1,18 @@
 name := "featherbed"
 
-import sbtunidoc.Plugin.UnidocKeys._
-import com.typesafe.sbt.SbtGhPages.GhPagesKeys._
-
 enablePlugins(TutPlugin)
+enablePlugins(SiteScaladocPlugin)
 
 lazy val buildSettings = Seq(
   organization := "io.github.finagle",
-  version := "0.3.2",
+  version := "0.3.3",
   scalaVersion := "2.12.2",
   crossScalaVersions := Seq("2.11.11", "2.12.2")
 )
 
-val finagleVersion = "6.44.0"
-val shapelessVersion = "2.3.2"
-val catsVersion = "1.0.0-RC1"
+val finagleVersion = "17.12.0"
+val shapelessVersion = "2.3.3"
+val catsVersion = "1.0.1"
 
 lazy val docSettings = Seq(
   autoAPIMappings := true
@@ -85,7 +83,7 @@ val tutPath = settingKey[String]("Path to tutorials")
 lazy val docs: Project = project
     .enablePlugins(TutPlugin)
     .settings(
-      allSettings ++ ghpages.settings ++ Seq(
+      allSettings ++ Seq(
         scaladocVersionPath := ("api/" + version.value),
         scaladocLatestPath := (if (isSnapshot.value) "api/latest-snapshot" else "api/latest"),
         tutPath := "doc",
