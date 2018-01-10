@@ -1,6 +1,6 @@
 enablePlugins(GitVersioning, GitBranchPrompt)
 
-name := "featherbed-circe"
+name := "featherbed-core"
 
 lazy val buildSettings = Seq(
   organization := "com.redbubble",
@@ -17,10 +17,11 @@ bintrayPackageLabels := Seq("scala", "utilities", "util", "circe", "cats", "fina
 
 licenses += ("BSD New", url("https://opensource.org/licenses/BSD-3-Clause"))
 
+//featherbed-circe is duplicated in featherbed-core for testing
 val circeVersion = "0.9.0"
 
 libraryDependencies ++= Seq(
-  "io.circe" %% "circe-core" % circeVersion,
-  "io.circe" %% "circe-generic" % circeVersion,
-  "io.circe" %% "circe-parser" % circeVersion
+  "io.circe" %% "circe-core" % circeVersion % "test",
+  "io.circe" %% "circe-generic" % circeVersion % "test",
+  "io.circe" %% "circe-parser" % circeVersion % "test"
 )
