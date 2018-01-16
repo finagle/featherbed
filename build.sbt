@@ -14,7 +14,7 @@ lazy val buildSettings = Seq(
 
 val finagleVersion = "17.12.0"
 val shapelessVersion = "2.3.3"
-val catsVersion = "1.0.0"
+val catsVersion = "1.0.1"
 
 lazy val docSettings = Seq(
   autoAPIMappings := true
