@@ -5,7 +5,6 @@ import java.nio.charset.Charset
 import cats.data.ValidatedNel
 import cats.implicits._
 import io.circe._
-import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
 import shapeless.Witness

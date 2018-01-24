@@ -32,6 +32,7 @@ Create a `Client`, passing the base URL to the REST endpoints:
 import java.net.URL
 val client = new featherbed.Client(new URL("http://localhost:8765/api/"))
 ```
+
 *Note:* It is important to put a trailing slash on your URL.  This is because the resource path you'll pass in below
 is evaluated as a relative URL to the base URL given.  Without a trailing slash, the `api` directory above would be
 lost when the relative URL is resolved.
@@ -41,9 +42,10 @@ Now you can make some requests:
 ```tut:book
 import com.twitter.util.Await
 
-Await.result {
-  val request = client.get("test/resource").send[Response]()
-  request map {
+val request = client.get("test/resource").toService[Response]
+
+Await.result {  
+  request() map {
     response => response.contentString
   }
 }
@@ -61,30 +63,30 @@ Here's an example of using a `POST` request to submit a web form-style request:
 ```tut:book
 import java.nio.charset.StandardCharsets._
 
+val request = client.
+  post("another/resource").
+  withCharset(UTF_8).
+  withHeaders("X-Foo" -> "scooby-doo").
+  form.toService[Map[String, String], Response]
+
 Await.result {
-  client
-    .post("another/resource")
-    .withParams(
-      "foo" -> "foz",
-      "bar" -> "baz")
-    .withCharset(UTF_8)
-    .withHeaders("X-Foo" -> "scooby-doo")
-    .send[Response]()
-    .map {
-      response => response.contentString
-    }
+  request(Map("foo" -> "foz", "bar" -> "baz")) map {
+    response => response.contentString
+  }
 }
 ```
 
 Here's how you might send a `HEAD` request (note the lack of a type argument to `send()` for a HEAD request):
 
 ```tut:book
+val request = client.head("head/request").toService
+
 Await.result {
-  client.head("head/request").send().map(_.headerMap)
+  request().map(_.headerMap)
 }
 ```
 
-A `DELETE` request:
+A `DELETE` request (using the `send` syntax rather than `toService`):
 
 ```tut:book
 Await.result {
@@ -94,34 +96,34 @@ Await.result {
 }
 ```
 
-And a `PUT` request - notice how content can be provided to a `PUT` request by giving it a `Buf` buffer and a MIME type
-to serve as the `Content-Type`:
+And a `PUT` request - notice how a `Content-Type` is provided to the `toService` method, and we use `Buf` in this
+example to provide the content of the request.
 
 ```tut:book
 import com.twitter.io.Buf
 
+val request = client.
+  put("put/request").
+  toService[Buf, Response]("text/plain")
+  
 Await.result {
-  client.put("put/request")
-    .withContent(Buf.Utf8("Hello world!"), "text/plain")
-    .send[Response]()
-    .map {
-      response => response.statusCode
-    }
+  request(Buf.Utf8("Hello world!")).map {
+    response => response.statusCode
+  }
 }
 ```
 
 You can also provide content to a `POST` request in the same fashion:
 
 ```tut:book
-import com.twitter.io.Buf
+val request = client.
+  post("another/post/request").
+  toService[Buf, Response]("text/plain")
 
 Await.result {
-  client.post("another/post/request")
-    .withContent(Buf.Utf8("Hello world!"), "text/plain")
-    .send[Response]()
-    .map {
-      response => response.contentString
-    }
+  request(Buf.Utf8("Hello world!")).map {
+    response => response.contentString
+  }
 }
 ```
 

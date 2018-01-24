@@ -7,14 +7,15 @@ enablePlugins(TutPlugin)
 
 lazy val buildSettings = Seq(
   organization := "io.github.finagle",
-  version := "0.3.3",
-  scalaVersion := "2.12.2",
-  crossScalaVersions := Seq("2.11.11", "2.12.2")
+  version := "0.4.0-SNAPSHOT",
+  scalaVersion := "2.12.4",
+  crossScalaVersions := Seq("2.11.11", "2.12.4")
 )
 
 val finagleVersion = "17.12.0"
 val shapelessVersion = "2.3.3"
 val catsVersion = "1.0.1"
+val circeVersion = "0.9.0"
 
 lazy val docSettings = Seq(
   autoAPIMappings := true
@@ -29,8 +30,9 @@ lazy val baseSettings = docSettings ++ Seq(
     "org.scalatest" %% "scalatest" % "3.0.3" % "test"
   ),
   resolvers += Resolver.sonatypeRepo("snapshots"),
-  dependencyUpdatesFailBuild := false,
-  dependencyUpdatesExclusions := moduleFilter("org.scala-lang")
+  scalacOptions ++= Seq(
+    "-Ypartial-unification"
+  )
 )
 
 lazy val publishSettings = Seq(
@@ -75,7 +77,13 @@ lazy val `featherbed-core` = project
   .settings(allSettings)
 
 lazy val `featherbed-circe` = project
-  .settings(allSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.circe" %% "circe-parser" % circeVersion,
+      "io.circe" %% "circe-generic" % circeVersion % "test"
+    ),
+    allSettings
+  )
   .dependsOn(`featherbed-core`)
 
 val scaladocVersionPath = settingKey[String]("Path to this version's ScalaDoc")
@@ -101,6 +109,9 @@ lazy val docs: Project = project
             case _ => Nil
           }
         )
+      ),
+      libraryDependencies ++= Seq(
+        "io.circe" %% "circe-generic" % circeVersion
       )
     ).dependsOn(`featherbed-core`, `featherbed-circe`)
 

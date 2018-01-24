@@ -2,13 +2,11 @@ package featherbed.circe
 
 import cats.implicits._
 import com.twitter.util.Future
-import io.circe._
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.FlatSpec
-import shapeless.{Coproduct, Witness}
-import shapeless.union.Union
+import shapeless.Coproduct
 
 case class Foo(someText: String, someInt: Int)
 
@@ -52,9 +50,9 @@ class CirceSpec extends FlatSpec {
   }
 
   "API example" should "compile" in {
-    import shapeless.Coproduct
     import java.net.URL
     import com.twitter.util.Await
+    import shapeless.Coproduct
     case class Post(userId: Int, id: Int, title: String, body: String)
 
     case class Comment(postId: Int, id: Int, name: String, email: String, body: String)

@@ -5,27 +5,39 @@ import java.nio.charset.{Charset, StandardCharsets}
 
 import com.twitter.finagle._
 import com.twitter.finagle.builder.ClientBuilder
+import featherbed.auth.Authorizer
+import featherbed.request.{ClientRequest, HTTPRequest}
+import featherbed.request.ClientRequest._
 import http.{Request, RequestBuilder, Response}
-import shapeless.Coproduct
+import shapeless.{CNil, Coproduct}
 
 /**
   * A REST client with a given base URL.
   */
-class Client(
+case class Client(
   baseUrl: URL,
-  charset: Charset = StandardCharsets.UTF_8
-) extends request.RequestTypes with request.RequestBuilding {
+  charset: Charset = StandardCharsets.UTF_8,
+  filters: Filter[Request, Response, Request, Response] = Filter.identity[Request, Response],
+  maxFollows: Int = 5
+) {
+
+  def addFilter(filter: Filter[Request, Response, Request, Response]): Client =
+    copy(filters = filter andThen filters)
+
+  def setFilter(filter: Filter[Request, Response, Request, Response]): Client =
+    copy(filters = filter)
+
+  def authorized(authorizer: Authorizer): Client = setFilter(filters andThen authorizer)
 
   /**
     * Specify a GET request to be performed against the given resource
     * @param relativePath The path to the resource, relative to the baseUrl
     * @return A [[GetRequest]] object, which can further specify and send the request
     */
-  def get(relativePath: String): GetRequest[Coproduct.`"*/*"`.T] =
-    GetRequest[Coproduct.`"*/*"`.T](
+  def get(relativePath: String): GetRequest[CNil] =
+    ClientRequest(this).get(
       baseUrl.toURI.resolve(relativePath).toURL,
-      List.empty,
-      charset
+      filters
     )
 
   /**
@@ -33,12 +45,10 @@ class Client(
     * @param relativePath The path to the resource, relative to the baseUrl
     * @return A [[PostRequest]] object, which can further specify and send the request
     */
-  def post(relativePath: String): PostRequest[None.type, Nothing, Coproduct.`"*/*"`.T] =
-    PostRequest[None.type, Nothing, Coproduct.`"*/*"`.T](
+  def post(relativePath: String): PostRequest[CNil, None.type, None.type] =
+    ClientRequest(this).post(
       baseUrl.toURI.resolve(relativePath).toURL,
-      None,
-      List.empty,
-      charset
+      filters
     )
 
   /**
@@ -46,12 +56,21 @@ class Client(
     * @param relativePath The path to the resource, relative to the baseUrl
     * @return A [[PutRequest]] object, which can further specify and send the request
     */
-  def put(relativePath: String): PutRequest[None.type, Nothing, Coproduct.`"*/*"`.T] =
-    PutRequest[None.type, Nothing, Coproduct.`"*/*"`.T](
+  def put(relativePath: String): PutRequest[CNil, None.type, None.type] =
+    ClientRequest(this).put(
       baseUrl.toURI.resolve(relativePath).toURL,
-      None,
-      List.empty,
-      charset
+      filters
+    )
+
+  /**
+    * Specify a PATCH request to be performed against the given resource
+    * @param relativePath The path to the resource, relative to the baseUrl
+    * @return A [[PatchRequest]] object, which can further specify and send the request
+    */
+  def patch(relativePath: String): PatchRequest[CNil, None.type, None.type] =
+    ClientRequest(this).patch(
+      baseUrl.toURI.resolve(relativePath).toURL,
+      filters
     )
 
   /**
@@ -60,15 +79,21 @@ class Client(
     * @return A [[HeadRequest]] object, which can further specify and send the request
     */
   def head(relativePath: String): HeadRequest =
-    HeadRequest(baseUrl.toURI.resolve(relativePath).toURL, List.empty)
+    ClientRequest(this).head(
+      baseUrl.toURI.resolve(relativePath).toURL,
+      filters
+    )
 
   /**
     * Specify a DELETE request to be performed against the given resource
     * @param relativePath The path to the resource, relative to the baseUrl
     * @return A [[DeleteRequest]] object, which can further specify and send the request
     */
-  def delete(relativePath: String): DeleteRequest[Coproduct.`"*/*"`.T] =
-    DeleteRequest[Coproduct.`"*/*"`.T](baseUrl.toURI.resolve(relativePath).toURL, List.empty)
+  def delete(relativePath: String): DeleteRequest[CNil] =
+    ClientRequest(this).delete(
+      baseUrl.toURI.resolve(relativePath).toURL,
+      filters
+    )
 
   /**
     *  Close this client releasing allocated resources.
@@ -78,11 +103,11 @@ class Client(
 
   protected def clientTransform(client: Http.Client): Http.Client = client
 
-  protected def serviceTransform(service: Service[Request, Response]): Service[Request, Response] = service
+  protected lazy val client =
+    clientTransform(Client.forUrl(baseUrl))
 
-  protected val client = clientTransform(Client.forUrl(baseUrl))
-
-  protected[featherbed] val httpClient = serviceTransform(client.newService(Client.hostAndPort(baseUrl)))
+  protected[featherbed] lazy val httpClient =
+    client.newService(Client.hostAndPort(baseUrl))
 }
 
 object Client {
