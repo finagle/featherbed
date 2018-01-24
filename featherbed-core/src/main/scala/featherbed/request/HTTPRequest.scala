@@ -133,20 +133,20 @@ object HTTPRequest extends RequestSyntax[HTTPRequest] with RequestTypes[HTTPRequ
       val newContent = req.content match {
         case MimeContent(Form(existing), _) => MimeContent[MultipartForm, MimeContent.MultipartForm](
           MultipartForm(
-            NonEmptyList(first, rest.toList).map((ToFormParam.file.apply _).tupled).sequenceU map {
+            NonEmptyList(first, rest.toList).map((ToFormParam.file.apply _).tupled).sequence map {
               validFiles => validFiles ++ existing.toList
             }
           )
         )
         case MimeContent(MultipartForm(existing), _) => MimeContent[MultipartForm, MimeContent.MultipartForm](
           MultipartForm(
-            NonEmptyList(first, rest.toList).map((ToFormParam.file.apply _).tupled).sequenceU andThen {
+            NonEmptyList(first, rest.toList).map((ToFormParam.file.apply _).tupled).sequence andThen {
               validFiles => existing map (validFiles ++ _.toList)
             }
           )
         )
         case _ => MimeContent[MultipartForm, MimeContent.MultipartForm](MultipartForm(
-          NonEmptyList(first, rest.toList).map((ToFormParam.file.apply _).tupled).sequenceU
+          NonEmptyList(first, rest.toList).map((ToFormParam.file.apply _).tupled).sequence
         ))
       }
       req.copy[Method.Post, Accept, MultipartForm, MimeContent.MultipartForm](

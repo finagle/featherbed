@@ -7,15 +7,15 @@ enablePlugins(TutPlugin)
 
 lazy val buildSettings = Seq(
   organization := "io.github.finagle",
-  version := "0.3.3",
-  scalaVersion := "2.12.2",
-  crossScalaVersions := Seq("2.11.11", "2.12.2")
+  version := "0.4.0-SNAPSHOT",
+  scalaVersion := "2.12.4",
+  crossScalaVersions := Seq("2.11.11", "2.12.4")
 )
 
 val finagleVersion = "17.12.0"
 val shapelessVersion = "2.3.3"
 val catsVersion = "1.0.1"
-val circeVersion = "0.7.1"
+val circeVersion = "0.9.0"
 
 lazy val docSettings = Seq(
   autoAPIMappings := true
@@ -29,7 +29,10 @@ lazy val baseSettings = docSettings ++ Seq(
     "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
     "org.scalatest" %% "scalatest" % "3.0.3" % "test"
   ),
-  resolvers += Resolver.sonatypeRepo("snapshots")
+  resolvers += Resolver.sonatypeRepo("snapshots"),
+  scalacOptions ++= Seq(
+    "-Ypartial-unification"
+  )
 )
 
 lazy val publishSettings = Seq(
